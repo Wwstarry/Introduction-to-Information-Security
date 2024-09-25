@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加密工具</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+
+        body {
+            background-color: #f0f8ff; 
+            font-family: 'Arial', sans-serif;
+            color: #555555;
+            
+        }
+
+        /* body {
+
+font-family: 'Arial', sans-serif;
+color: #555555;
+--color1: #f0f8ff;
+--color2: #87b4db;
+background-color: var(--color1);
+background-image: linear-gradient(45deg, var(--color2) 25%, transparent 25%, transparent 75%, var(--color2) 75%, var(--color2)), 
+        linear-gradient(45deg, var(--color2) 25%, var(--color1) 25%, var(--color1) 75%, var(--color2) 75%, var(--color2));
+background-size: 60px 60px;
+background-position: 0 0, 30px 30px;
+
+} */
+
+        h1 {
+    font-size: 3rem; /* 增大字体 */
+    color: beige; /* 统一颜色为黑色 */
+    font-weight: 700; /* 加粗标题 */
+    text-align: center;
+    margin-bottom: 40px; /* 增加底部的间距 */
+    text-shadow: 4px 4px black; /* 添加黑色阴影 */
+}
+
+        .form-group label {
+            font-weight: 500;
+            color: #555555; /* 浅灰色标签 */
+        }
+
+        .form-group {
+            margin-bottom: 20px; /* 增加下方的外边距 */
+        }
+
+        /* 更新选择加密模式的下拉菜单样式 */
+        .form-select {
+            width: 100%;
+            height: 40px;
+            border-radius: 5px;
+            border: 2px solid black;
+            background-color: beige; /* 背景色 */
+            box-shadow: 4px 4px black; /* 黑色阴影 */
+            font-size: 15px;
+            font-weight: 600;
+            color: black; /* 字体颜色 */
+            padding: 5px 10px;
+            outline: none;
+        }
+
+        .form-select:focus {
+            border: 2px solid #2d8cf0; /* 聚焦时的边框颜色 */
+        }
+
+        /* 美化开始暴力破解按钮 */
+        .btn-danger {
+            background-color: beige; /* 背景色 */
+            border-radius: 5px;
+            border: 2px solid black; /* 黑色边框 */
+            box-shadow: 4px 4px black; /* 黑色阴影 */
+            color: black;
+            font-size: 17px;
+            font-weight: 600;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: box-shadow 0.2s, transform 0.2s;
+            width: 100%;
+            text-align: center;
+        }
+
+        .btn-danger:active {
+            box-shadow: 0px 0px black;
+            transform: translate(3px, 3px);
+        }
+
+        textarea.form-control {
+            width: 100%;
+            border-radius: 5px;
+            border: 2px solid black;
+            background-color: beige; /* 背景色 */
+            box-shadow: 4px 4px black; /* 黑色阴影 */
+            font-size: 15px;
+            font-weight: 600;
+            color: black; /* 深灰色字体 */
+            padding: 5px 10px;
+            outline: none;
+            resize: none; /* 禁止调整文本框大小 */
+        }
+
+        textarea.form-control:focus {
+            border: 2px solid #2d8cf0; /* 聚焦时的边框颜色 */
+        }
+
+        /* 更新容器的样式 */
+        .container {
+            max-width: 900px;
+            margin-top: 50px;
+            background-color: lightblue;
+            padding: 20px;
+            box-shadow: 4px 4px black; /* 黑色阴影 */
+            border-radius: 5px;
+            border: 2px solid black; /* 边框颜色调整 */
+        }
+
+        /* 更新按钮的样式 */
+        .btn-custom {
+            background-color: beige; /* 背景色 */
+            border-radius: 5px;
+            border: 2px solid black; /* 黑色边框 */
+            box-shadow: 4px 4px black; /* 黑色阴影 */
+            color: black;
+            font-size: 17px;
+            font-weight: 600;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: box-shadow 0.2s, transform 0.2s;
+            width: 100%;
+            text-align: center;
+        }
+
+        .btn-custom + .btn-custom {
+            margin-top: 10px; /* 增加按钮之间的间距 */
+        }
+
+        .btn-custom:active {
+            box-shadow: 0px 0px black;
+            transform: translate(3px, 3px);
+        }
+
+        /* 修改文本输入框的样式 */
+        .input {
+            width: 100%;
+            height: 40px;
+            border-radius: 5px;
+            border: 2px solid black;
+            background-color: beige; /* 背景色 */
+            box-shadow: 4px 4px black; /* 黑色阴影 */
+            font-size: 15px;
+            font-weight: 600;
+            color: black; /* 深灰色字体 */
+            padding: 5px 10px;
+            outline: none;
+        }
+
+
+        .input:focus {
+            border: 2px solid #2d8cf0; /* 聚焦时的边框颜色 */
+        }
+
+        /* 线程选择框的样式，应用和 .input 类一致的样式 */
+.input-number {
+    width: 100%;
+    height: 40px;
+    border-radius: 5px;
+    border: 2px solid black;
+    background-color: beige; /* 背景色 */
+    box-shadow: 4px 4px black; /* 黑色阴影 */
+    font-size: 15px;
+    font-weight: 600;
+    color: black; /* 深灰色字体 */
+    padding: 5px 10px;
+    outline: none;
+}
+
+/* 聚焦效果 */
+.input-number:focus {
+    border: 2px solid #2d8cf0; /* 聚焦时的边框颜色 */
+}
+
+
+        /* 美化文件加解密中的选择文件部分 */
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            background-color: beige;
+            border: 2px solid black;
+            box-shadow: 4px 4px black;
+            border-radius: 5px;
+            font-size: 15px;
+            font-weight: 600;
+            color: black;
+            outline: none;
+        }
+
+        input[type="file"]:focus {
+            border: 2px solid #2d8cf0;
+        }
+
+        /* 美化导航栏的样式 */
+        .nav-tabs {
+            margin-top: 20px; /* 增加导航栏上方的外边距 */
+            border-bottom: 2px solid black;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .nav-tabs .nav-item {
+            margin-right: 10px;
+        }
+
+        .nav-tabs .nav-link {
+            background-color: beige; /* 背景色 */
+            border-radius: 5px;
+            border: 2px solid black; /* 黑色边框 */
+            box-shadow: 4px 4px black; /* 黑色阴影 */
+            color: black;
+            font-weight: 600;
+            padding: 10px 20px;
+            text-align: center;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+
+        .nav-tabs .nav-link:hover {
+            box-shadow: 0 0 0 black;
+            transform: translate(2px, 2px);
+        }
+
+        .nav-tabs .nav-link.active {
+            background-color: lightblue;
+            color: black;
+            border-color: black;
+            box-shadow: 4px 4px black; /* 黑色阴影 */
+        }
+
+        .nav-tabs .nav-link:focus,
+        .nav-tabs .nav-link:active {
+            outline: none;
+            box-shadow: 0px 0px black;
+            transform: translate(2px, 2px);
+        }
+
+        .section {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .section.active {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+
+        /* 美化暴力破解的线程选择和进度条 */
+        .progress {
+            background-color: beige;
+            border-radius: 5px;
+            box-shadow: 4px 4px black;
+            height: 20px;
+        }
+
+        .progress-bar {
+            background-color: #2d8cf0;
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.5s;
+        }
+
+        .loader {
+            margin-top: 10px;
+            margin-bottom: 10px;
+            display: block;
+            --height-of-loader: 4px;
+            --loader-color: #f0f8ff;
+            width: 830px;
+            height: var(--height-of-loader);
+            border-radius: 30px;
+            background-color: rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .loader::before {
+            content: "";
+            position: absolute;
+            background: var(--loader-color);
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 100%;
+            border-radius: 30px;
+            animation: moving 1s ease-in-out infinite;
+        }
+
+        @keyframes moving {
+            50% {
+                width: 100%;
+            }
+            100% {
+                width: 0;
+                right: 0;
+                left: unset;
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        footer {
+            margin-top: 10px;
+        }
+
+
+
+        
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 class="text-center">加密算法系统</h1>
+
+    <!-- 加密模式选择，放在所有功能之上 -->
+    <div class="form-group">
+        <h3>选择加密模式:</h3>
+        <select class="form-select" id="mode" name="mode">
+            <option value="s-des">S-DES</option>
+            <option value="s-aes">S-AES</option>
+        </select>
+    </div>
+
+    <!-- 导航栏 -->
+    <ul class="nav nav-tabs">
+        <li class="nav-item">
+            <a class="nav-link active" href="#" onclick="switchSection('bit-mode')">bit模式</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" onclick="switchSection('file-encryption')">文件加解密</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" onclick="switchSection('plaintext-ciphertext')">明密文对照</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" onclick="switchSection('brute-force')">暴力破解</a>
+        </li>
+    </ul>
+
+    <!-- bit模式 -->
+    <div id="bit-mode" class="section active">
+        <h3>bit模式</h3>
+        <form id="crypto-form">
+            <!-- 密钥输入框 -->
+            <div class="form-group">
+                <label for="key">密钥 (二进制):</label>
+                <div class="input-container">
+                    <input type="text" class="input" id="key" placeholder="请输入密钥">
+                </div>
+            </div>
+
+            <!-- 明文输入框 -->
+            <div class="form-group">
+                <label for="plaintext">明文:</label>
+                <div class="input-container">
+                    <textarea class="input" id="plaintext" rows="1" placeholder="请输入明文"></textarea>
+                </div>
+            </div>
+
+
+            <!-- 密文输出框 -->
+            <div class="form-group">
+                <label for="ciphertext">密文:</label>
+                <div class="input-container">
+                    <textarea class="input" id="ciphertext" rows="1" placeholder="加密/解密结果" readonly></textarea>
+                </div>
+            </div>
+
+            <!-- Loader -->
+            <div class="loader"></div>
+
+            <!-- 加解密按钮 -->
+            <div class="form-group">
+                <button type="button" class="btn btn-custom" onclick="startEncryption()">加密</button>
+                <button type="button" class="btn btn-custom" onclick="startDecryption()">解密</button>
+            </div>
+        </form>
+    </div>
+
+<!-- 文件加解密 -->
+<div id="file-encryption" class="section">
+    <h3>文件加解密</h3>
+    <div class="form-group">
+        <label for="file-key">密钥 (二进制):</label>
+        <div class="input-container">
+            <input type="text" class="input" id="file-key" placeholder="请输入密钥">
+        </div>
+    </div>
+    <div class="form-group">
+        <label for="file">选择文件:</label>
+        <input type="file" class="form-control" id="file" accept=".txt">
+    </div>
+<!-- 按钮组，包含加密、解密和保存文件按钮 -->
+<div class="form-group mt-3" style="display: flex; gap: 10px;">
+    <button type="button" class="btn btn-custom" style="flex: 1; height: 50px;margin-top: 10px;" onclick="encryptFile()">文件加密</button>
+    <button type="button" class="btn btn-custom" style="flex: 1; height: 50px;" onclick="decryptFile()">文件解密</button>
+    <button type="button" class="btn btn-custom" style="flex: 1; height: 50px;" onclick="saveFile()">保存文件</button>
+</div>
+
+    <textarea class="form-control mt-3" id="file-output" rows="6" readonly></textarea>
+</div>
+
+<!-- 明密文对照 -->
+<div id="plaintext-ciphertext" class="section">
+    <h3>明密文对照</h3>
+    <form>
+        <div class="form-group">
+            <label for="compare-key">密钥 (二进制):</label>
+            <div class="input-container">
+                <input type="text" class="input" id="compare-key" placeholder="请输入密钥">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="compare-plaintext">明文:</label>
+            <div class="input-container">
+                <textarea class="input" id="compare-plaintext" rows="4" placeholder="请输入明文"></textarea>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="compare-ciphertext">密文:</label>
+            <div class="input-container">
+                <textarea class="input" id="compare-ciphertext" rows="4" placeholder="对应的密文" readonly></textarea>
+            </div>
+        </div>
+    </form>
+</div>
+
+    <!-- 暴力破解 -->
+    <div id="brute-force" class="section">
+        <h3>暴力破解</h3>
+        <div class="form-group">
+            <label for="threads">线程数量:</label>
+            <input type="number" class="input-number" id="threads" value="4">
+        </div>
+        <div class="form-group">
+            <label for="brute-force-plaintext">明文:</label>
+            <div class="input-container">
+                <textarea class="input" id="brute-force-plaintext" rows="2" placeholder="请输入明文"></textarea>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="brute-force-ciphertext">密文:</label>
+            <div class="input-container">
+                <textarea class="input" id="brute-force-ciphertext" rows="2" placeholder="请输入密文"></textarea>
+            </div>
+        </div>
+        <div class="form-group mt-3">
+            <button type="button" class="btn btn-danger" onclick="startBruteForce()">开始暴力破解</button>
+        </div>
+        <div class="progress mt-3">
+            <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+        </div>
+        <textarea class="form-control mt-3" id="brute-force-output" rows="6" readonly></textarea>
+    </div>
+    <footer>
+        <p>&copy; 2024 信息安全导论.20221982潘铷葳</p>
+    </footer>
+
+
+</div>
+
+<script>
+    // 切换显示不同的部分
+    function switchSection(sectionId) {
+        document.querySelectorAll('.section').forEach(section => {
+            section.classList.remove('active');
+        });
+        document.getElementById(sectionId).classList.add('active');
+        
+        // 更新导航栏的状态
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+        });
+        event.target.classList.add('active');
+    }
+
+    function startEncryption() {
+        let mode = document.getElementById("mode").value;
+        let key = document.getElementById("key").value;
+        let plaintext = document.getElementById("plaintext").value;
+
+        fetch('/encrypt', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ mode, key, plaintext })
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('ciphertext').value = data.ciphertext;
+        });
+    }
+
+    function startDecryption() {
+        let mode = document.getElementById("mode").value;
+        let key = document.getElementById("key").value;
+        let ciphertext = document.getElementById("ciphertext").value;
+
+        fetch('/decrypt', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ mode, key, ciphertext })
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('plaintext').value = data.plaintext;
+        });
+    }
+
+    // 文件加密
+    function encryptFile() {
+        let file = document.getElementById("file").files[0];
+        let key = document.getElementById("file-key").value;
+        let formData = new FormData();
+        formData.append('file', file);
+        formData.append('key', key);
+        formData.append('mode', 's-aes'); // 或者's-des'，根据前面选择加密模式
+
+        fetch('/encrypt-file', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.text())
+        .then(data => {
+            document.getElementById('file-output').value = data;  // 将加密结果显示在文本框中
+        });
+    }
+
+    // 文件解密
+    function decryptFile() {
+        let file = document.getElementById("file").files[0];
+        let key = document.getElementById("file-key").value;
+        let formData = new FormData();
+        formData.append('file', file);
+        formData.append('key', key);
+        formData.append('mode', 's-aes'); // 或者's-des'，根据前面选择加密模式
+
+        fetch('/decrypt-file', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.text())
+        .then(data => {
+            document.getElementById('file-output').value = data;  // 将解密结果显示在文本框中
+        });
+    }
+
+    // 保存文件
+    function saveFile() {
+        let content = document.getElementById('file-output').value;
+        let blob = new Blob([content], { type: 'text/plain' });
+        let link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        link.download = 'output.txt';
+        link.click();
+    }
+    
+    function startBruteForce() {
+        let threads = document.getElementById("threads").value;
+        let plaintext = document.getElementById("brute-force-plaintext").value;
+        let ciphertext = document.getElementById("brute-force-ciphertext").value;
+
+        fetch('/brute-force', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ threads, plaintext, ciphertext })
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('brute-force-output').value = data.result;
+            document.getElementById('progress-bar').style.width = "100%";
+        });
+    }
+
+         // 实时监听明文输入框的输入事件
+         document.getElementById('compare-plaintext').addEventListener('input', function() {
+            const key = document.getElementById('compare-key').value;
+            const plaintext = this.value;
+            const mode = 's-aes';  // 可以根据需求修改为's-des'或's-aes'
+
+            // 如果密钥和明文都非空，则发送请求
+            if (key.length === 16 && plaintext) {
+                // 向后端发送POST请求
+                fetch('/encrypt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ mode, key, plaintext }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // 更新密文显示框
+                    if (data.ciphertext) {
+                        document.getElementById('compare-ciphertext').value = data.ciphertext;
+                    } else if (data.error) {
+                        document.getElementById('compare-ciphertext').value = data.error;
+                    }
+                });
+            } else {
+                document.getElementById('compare-ciphertext').value = ''; // 清空密文框
+            }
+        });
+
+
+        
+</script>
+
+
+</body>
+</html>
