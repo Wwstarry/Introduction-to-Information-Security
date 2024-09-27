@@ -3,7 +3,6 @@ import pickle
 import random
 import time
 
-from PyQt5.QtCore import QThread, pyqtSignal
 from S_AES import *
 
 from multiprocessing import *
@@ -76,9 +75,6 @@ class Multi_bruteForce_16(Process):
             self.PgQueue.put(1)
             for i in find:
                 self.Queue.put([self.id, key + i[0]])
-
-
-
 
 
 

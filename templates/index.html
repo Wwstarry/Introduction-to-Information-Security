@@ -524,22 +524,99 @@ background-position: 0 0, 30px 30px;
         });
     }
 
+
+    // 切换显示不同的部分
+    function switchSection(sectionId) {
+        document.querySelectorAll('.section').forEach(section => {
+            section.classList.remove('active');
+        });
+        document.getElementById(sectionId).classList.add('active');
+        
+        // 更新导航栏的状态
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+        });
+        event.target.classList.add('active');
+    }
+
+    function startEncryption() {
+        let mode = document.getElementById("mode").value;
+        let key = document.getElementById("key").value;
+        let plaintext = document.getElementById("plaintext").value;
+
+        fetch('/encrypt', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ mode, key, plaintext })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.ciphertext) {
+                document.getElementById('ciphertext').value = data.ciphertext;
+            } else if (data.error) {
+                alert(data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('加密过程中发生错误');
+        });
+    }
+
+    function startDecryption() {
+        let mode = document.getElementById("mode").value;
+        let key = document.getElementById("key").value;
+        let ciphertext = document.getElementById("ciphertext").value;
+
+        fetch('/decrypt', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ mode, key, ciphertext })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.plaintext) {
+                document.getElementById('plaintext').value = data.plaintext;
+            } else if (data.error) {
+                alert(data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('解密过程中发生错误');
+        });
+    }
+
     // 文件加密
     function encryptFile() {
         let file = document.getElementById("file").files[0];
         let key = document.getElementById("file-key").value;
+        let mode = document.getElementById("mode").value; // 动态获取模式
         let formData = new FormData();
         formData.append('file', file);
         formData.append('key', key);
-        formData.append('mode', 's-aes'); // 或者's-des'，根据前面选择加密模式
+        formData.append('mode', mode); // 根据用户选择的模式设置
 
         fetch('/encrypt-file', {
             method: 'POST',
             body: formData
         })
-        .then(response => response.text())
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.text();
+        })
         .then(data => {
             document.getElementById('file-output').value = data;  // 将加密结果显示在文本框中
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert(error.error || '文件加密过程中发生错误');
         });
     }
 
@@ -547,21 +624,30 @@ background-position: 0 0, 30px 30px;
     function decryptFile() {
         let file = document.getElementById("file").files[0];
         let key = document.getElementById("file-key").value;
+        let mode = document.getElementById("mode").value; // 动态获取模式
         let formData = new FormData();
         formData.append('file', file);
         formData.append('key', key);
-        formData.append('mode', 's-aes'); // 或者's-des'，根据前面选择加密模式
+        formData.append('mode', mode); // 根据用户选择的模式设置
 
         fetch('/decrypt-file', {
             method: 'POST',
             body: formData
         })
-        .then(response => response.text())
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.text();
+        })
         .then(data => {
             document.getElementById('file-output').value = data;  // 将解密结果显示在文本框中
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert(error.error || '文件解密过程中发生错误');
         });
     }
-
     // 保存文件
     function saveFile() {
         let content = document.getElementById('file-output').value;
@@ -573,53 +659,29 @@ background-position: 0 0, 30px 30px;
     }
     
     function startBruteForce() {
-        let threads = document.getElementById("threads").value;
-        let plaintext = document.getElementById("brute-force-plaintext").value;
-        let ciphertext = document.getElementById("brute-force-ciphertext").value;
+    let threads = document.getElementById("threads").value;
+    let plaintext = document.getElementById("brute-force-plaintext").value;
+    let ciphertext = document.getElementById("brute-force-ciphertext").value;
+    let mode = document.getElementById("mode").value; // 动态获取模式
 
-        fetch('/brute-force', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ threads, plaintext, ciphertext })
-        })
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('brute-force-output').value = data.result;
-            document.getElementById('progress-bar').style.width = "100%";
-        });
-    }
+    fetch('/brute-force', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ threads, plaintext, ciphertext, mode }) // 包含 mode
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('brute-force-output').value = data.result;
+        document.getElementById('progress-bar').style.width = "100%";
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert(error.error || '暴力破解过程中发生错误');
+    });
+}
 
-         // 实时监听明文输入框的输入事件
-         document.getElementById('compare-plaintext').addEventListener('input', function() {
-            const key = document.getElementById('compare-key').value;
-            const plaintext = this.value;
-            const mode = 's-aes';  // 可以根据需求修改为's-des'或's-aes'
-
-            // 如果密钥和明文都非空，则发送请求
-            if (key.length === 16 && plaintext) {
-                // 向后端发送POST请求
-                fetch('/encrypt', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ mode, key, plaintext }),
-                })
-                .then(response => response.json())
-                .then(data => {
-                    // 更新密文显示框
-                    if (data.ciphertext) {
-                        document.getElementById('compare-ciphertext').value = data.ciphertext;
-                    } else if (data.error) {
-                        document.getElementById('compare-ciphertext').value = data.error;
-                    }
-                });
-            } else {
-                document.getElementById('compare-ciphertext').value = ''; // 清空密文框
-            }
-        });
 
 
         

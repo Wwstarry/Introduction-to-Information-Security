@@ -1,9 +1,10 @@
 import multiprocessing
-from multiprocessing import Process  # Import Process class explicitly
+from multiprocessing import Process
 import pickle
 import logging
-from S_AES import S_AES  # AES 加密逻辑
-from S_DES import S_DES  # DES 加密逻辑
+from S_AES import S_AES
+from S_DES import S_DES
+import os
 
 
 logging.basicConfig(level=logging.INFO)
@@ -11,80 +12,103 @@ logger = logging.getLogger(__name__)
 
 
 class Multi_bruteForce_16(Process):
-    def __init__(self, id, start_point, end_point, P, C, queue, finish_queue, progress_queue, lock, event, trans_queue):
+    def __init__(self, id, start_point, end_point, P, C, mode, queue, finish_queue, progress_queue, lock, event, trans_queue):
         super().__init__()
         self.id = id
-        self.begin = start_point  # 直接使用整数，而不是将其转换为列表
-        self.end = end_point      # 直接使用整数，而不是将其转换为列表
+        self.begin = start_point  # Integer key
+        self.end = end_point      # Integer key
         self.P_list = [int(x) for x in P]
         self.C_list = [int(x) for x in C]
-        self.Cipher_E = S_AES()
-        self.Cipher_D = S_AES()
+        self.mode = mode.lower()
+        
+        # 根据模式初始化加密实例和密钥长度
+        if self.mode == 's-aes':
+            self.Cipher_E = S_AES()
+            self.key_length = 16
+        elif self.mode == 's-des':
+            self.Cipher_E = S_DES()
+            self.key_length = 10
+        else:
+            raise ValueError(f"Unsupported mode: {mode}")
+        
         self.queue = queue
         self.finish_queue = finish_queue
         self.progress_queue = progress_queue
         self.lock = lock
         self.event = event
-        self.trans_queue = trans_queue  # Ensure this parameter is defined
+        self.trans_queue = trans_queue
         self.encryption_list = []
-        self.decryption_list = []
+        # self.decryption_list = []  # 如果不需要解密，可以移除
 
     def run(self):
-        first_time = True
-        while first_time or self.begin <= self.end:
-            first_time = False
-            try:
-                # 将当前整数密钥转换为二进制列表（16位）
-                key_as_binary_list = [int(bit) for bit in format(self.begin, '016b')]
+        try:
+            first_time = True
+            while first_time or self.begin <= self.end:
+                first_time = False
+                
+                # 将整数密钥转换为二进制列表
+                key_format = f'0{self.key_length}b'
+                key_as_binary_str = format(self.begin, key_format)
+                key_as_binary_list = [int(bit) for bit in key_as_binary_str]
 
-                # 加密和解密操作
+                # 设置密钥
                 self.Cipher_E.SetKey(key_as_binary_list)
-                self.Cipher_D.SetKey(key_as_binary_list)
-                En = self.Cipher_E.Encryption_Attack(self.P_list)
-                De = self.Cipher_D.Decryption_Attack(self.C_list)
-                En_str = ''.join(''.join(str(bit) for bit in sublist) for sublist in En)
-                De_str = ''.join(''.join(str(bit) for bit in sublist) for sublist in De)
 
-                # 比较密文
-                if En_str == ''.join(map(str, self.C_list)):
-                    logger.info(f"找到匹配的密钥: {self.Cipher_E.GetKey()}")
-                    self.queue.put([self.id, self.Cipher_E.GetKey()])
+                # 执行加密
+                En = self.Cipher_E.Encryption_Attack(self.P_list)
+                # 假设 En 是一个嵌套列表，包含每一步的加密结果
+                En_str = ''.join(str(bit) for sublist in En for bit in sublist)
+
+                # 将目标密文转换为字符串
+                C_str = ''.join(map(str, self.C_list))
+                
+                # 调试日志：记录当前尝试的密钥和加密结果
+                logger.debug(f"Process {self.id}: Trying key {key_as_binary_str}, Encrypted: {En_str}")
+
+                # 比较加密结果与目标密文
+                if En_str == C_str:
+                    logger.info(f"Process {self.id}: Found matching key {key_as_binary_str}")
+                    self.queue.put([self.id, key_as_binary_str])
                     break
 
                 # 更新进度
-                self.progress_queue.put(1)  # 模拟进度更新
-                self.begin += 1  # 递增密钥整数
+                self.progress_queue.put(1)
+                self.begin +=1
 
-            except Exception as e:
-                logger.error(f"线程 {self.id} 遇到错误: {e}")
-                break
+        except Exception as e:
+            logger.error(f"Process {self.id} encountered an error: {e}")
 
-        # 保存加密和解密结果
-        with self.lock:
-            with open('En.pkl', 'ab') as enc_file, open('De.pkl', 'ab') as dec_file:
-                pickle.dump(self.encryption_list, enc_file)
-                pickle.dump(self.decryption_list, dec_file)
-
-        self.finish_queue.put(self.id)
-        self.event.set()  # 通知主进程任务完成
+        finally:
+            self.finish_queue.put(self.id)
+            self.event.set()  # 通知主进程任务完成
 
 
 # 任务分配函数
-def divide_task_16bit(num_segments):
-    start = 0
-    end = 65535  # 16-bit 密钥范围
+def divide_task_16bit(num_segments, mode='s-aes'):
+    if mode.lower() == 's-aes':
+        start = 0
+        end = 2**16 -1  # 16-bit key
+    elif mode.lower() == 's-des':
+        start = 0
+        end = 2**10 -1  # 10-bit key
+    else:
+        raise ValueError(f"Unsupported mode: {mode}")
+
     if num_segments <= 0:
         return []
-    segment_size = (end - start) // num_segments
+    segment_size = (end - start +1) // num_segments
     segments = []
     current_start = start
-    for _ in range(num_segments):
-        current_end = current_start + segment_size
-        if _ == num_segments - 1:
-            current_end = end  # 确保最后一个段到达范围末端
+    for i in range(num_segments):
+        current_end = current_start + segment_size -1
+        if i == num_segments -1:
+            current_end = end  # 最后一个段到达范围末端
         segments.append((current_start, current_end))
-        current_start = current_end + 1
+        current_start = current_end +1
     return segments
+
+
+
 
 
 if __name__ == '__main__':
@@ -116,3 +140,5 @@ if __name__ == '__main__':
     for data in all_data2:
         loaded_data2 += data
     print(len(loaded_data2))
+
+

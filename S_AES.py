@@ -204,6 +204,41 @@ class S_AES():
             De = self.Decryption(C)
             result.append(De)
         return result
+    
+    def ascii_to_binary(self, text: str) -> list:
+        """将ASCII字符串转换为二进制列表"""
+        binary_list = []
+        for char in text:
+            # 将每个字符的ASCII码转换为8位二进制
+            binary_char = format(ord(char), '08b')
+            binary_list.extend([int(bit) for bit in binary_char])
+        return binary_list
+
+    def binary_to_ascii(self, binary_list: list) -> str:
+        """将二进制列表转换回ASCII字符串"""
+        chars = []
+        for i in range(0, len(binary_list), 8):
+            # 每8个二进制位转换为一个字符
+            byte = binary_list[i:i+8]
+            char_code = int(''.join(map(str, byte)), 2)
+            chars.append(chr(char_code))
+        return ''.join(chars)
+    
+    def Encryption_ASCII(self, plaintext: str) -> str:
+        """将ASCII明文加密"""
+        binary_plaintext = self.ascii_to_binary(plaintext)
+        # 执行加密
+        encrypted_binary = self.Encryption(binary_plaintext)
+        # 将加密后的二进制转换回ASCII表示
+        return self.binary_to_ascii(encrypted_binary)
+
+    def Decryption_ASCII(self, ciphertext: str) -> str:
+        """将加密的ASCII密文解密"""
+        binary_ciphertext = self.ascii_to_binary(ciphertext)
+        # 执行解密
+        decrypted_binary = self.Decryption(binary_ciphertext)
+        # 将解密后的二进制转换回ASCII表示
+        return self.binary_to_ascii(decrypted_binary)
 
 if __name__ == "__main__":
     a_E = S_AES()
