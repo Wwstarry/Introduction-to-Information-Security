@@ -1,80 +1,84 @@
-import multiprocessing
 import pickle
-import random
-import time
+from multiprocessing import Process, Queue, Lock, Event
+from S_AES import S_AES
+import logging
 
-from S_AES import *
-
-from multiprocessing import *
+logger = logging.getLogger(__name__)
 
 class Multi_bruteForce_16(Process):
-    def __init__(self, id, start_point, end_point, P, C,Queue,finshQueue,Progress,lock,event,T_Queue):
+    def __init__(self, id, start_point, end_point, P, C, Queue, finshQueue, Progress, lock, event, T_Queue):
         super().__init__()
         self.id = id
-        self.begin = [int(x) for x in start_point]
-        self.end = [int(x) for x in end_point]
+        self.begin = int(start_point, 2)  # 将二进制字符串转换为整数
+        self.end = int(end_point, 2)
         self.P_list = [int(x) for x in P]
         self.C_list = [int(x) for x in C]
         self.Cipher_E = S_AES()
-        self.Cipher_D = S_AES()
-        self.Queue=Queue
+        self.Queue = Queue
         self.finshQueue = finshQueue
-        self.PgQueue=Progress
-        self.En_list=[]
-        self.De_list=[]
-        self.lock=lock
-        self.event:multiprocessing.Event=event
-        self.Trans=T_Queue
-        self.dic=None
+        self.PgQueue = Progress
+        self.lock = lock
+        self.event = event
+        self.Trans = T_Queue
 
     def run(self):
-        first_time = True
-        begin_copy=self.begin
+        try:
+            for key_int in range(self.begin, self.end + 1):
+                key_binary_str = format(key_int, '016b')  # 16-bit AES keys
+                key_binary_list = [int(bit) for bit in key_binary_str]
+                self.Cipher_E.SetKey(key_binary_list)
+                encrypted = self.Cipher_E.Encryption(self.P_list)
+                encrypted_str = ''.join(map(str, encrypted))
+                target_str = ''.join(map(str, self.C_list))
+                if encrypted_str == target_str:
+                    logger.info(f"Process {self.id}: Found key {key_binary_str}")
+                    self.Queue.put([self.id, key_binary_str])
+                    break
+                self.PgQueue.put(1)
+        except Exception as e:
+            logger.error(f"Process {self.id} encountered an error: {e}")
+        finally:
+            self.finshQueue.put(self.id)
+            self.event.set()
 
-        while first_time or self.begin != self.end:
-            first_time=False
-            self.Cipher_E.SetKey(self.begin)
-            self.Cipher_D.SetKey(self.begin)
-            En=self.Cipher_E.Encryption_Attack(self.P_list)
-            De=self.Cipher_D.Decryption_Attack(self.C_list)
-            En_str=''.join(''.join(str(bit) for bit in sublist) for sublist in En)
+# Multithreading.py（用于 DES）
+def divide_task(num_segments):
+    start = 0
+    end = 1023  # 10-bit DES keys
+    if num_segments <= 0:
+        return []
+    segment_size = (end - start + 1) // num_segments
+    segments = []
+    current_start = start
+    for i in range(num_segments):
+        current_end = current_start + segment_size - 1
+        if i == num_segments - 1:
+            current_end = end  # 确保最后一个段到达范围末端
+        start_binary = format(current_start, '010b')
+        end_binary = format(current_end, '010b')
+        segments.append((start_binary, end_binary))
+        current_start = current_end + 1
+    return segments
 
-            De_str=''.join(''.join(str(bit) for bit in sublist) for sublist in De)
-            self.En_list.append([self.Cipher_E.GetKey(),En_str])
-            self.De_list.append([self.Cipher_D.GetKey(), De_str])
-            self.begin = self.binary_addition(self.begin, [1])
+# MultithreadingOfAES.py（用于 AES）
+def divide_task_16bit(num_segments):
+    start = 0
+    end = 65535  # 16-bit AES keys
+    if num_segments <= 0:
+        return []
+    segment_size = (end - start + 1) // num_segments
+    segments = []
+    current_start = start
+    for i in range(num_segments):
+        current_end = current_start + segment_size - 1
+        if i == num_segments - 1:
+            current_end = end  # 确保最后一个段到达范围末端
+        start_binary = format(current_start, '016b')
+        end_binary = format(current_end, '016b')
+        segments.append((start_binary, end_binary))
+        current_start = current_end + 1
+    return segments
 
-
-        with self.lock:
-            with open('En.pkl', 'ab') as file1:
-                with open('De.pkl', 'ab') as file2:
-                    pickle.dump(self.En_list,file1)
-                    pickle.dump(self.De_list,file2)
-
-        self.finshQueue.put(self.id)
-        self.event.wait()
-        self.dic=self.Trans.get()
-
-        with self.lock:
-            all_data2 = []
-            # 打开.pkl文件以读取数据
-            with open('De.pkl', 'rb') as file2:
-                while True:
-                    try:
-                        data2 = pickle.load(file2)
-                        all_data2.append(data2)
-                    except EOFError:
-                        break
-            # 打印所有加载的数据
-            self.De_list=[]
-            for data in all_data2:
-                self.De_list += data
-        sorted_array = sorted(self.De_list, key=lambda x: x[1])  # 先按第二个元素排序
-        for key, value in self.dic.items():
-            find=self.binary_search_tuples(sorted_array,value)
-            self.PgQueue.put(1)
-            for i in find:
-                self.Queue.put([self.id, key + i[0]])
 
 
 

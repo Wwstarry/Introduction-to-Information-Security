@@ -474,6 +474,10 @@ background-position: 0 0, 30px 30px;
 </div>
 
 <script>
+
+
+
+
     // 切换显示不同的部分
     function switchSection(sectionId) {
         document.querySelectorAll('.section').forEach(section => {
@@ -664,6 +668,17 @@ background-position: 0 0, 30px 30px;
     let ciphertext = document.getElementById("brute-force-ciphertext").value;
     let mode = document.getElementById("mode").value; // 动态获取模式
 
+    // 清空之前的输出
+    document.getElementById('brute-force-output').value = "";
+    // 重置进度条
+    document.getElementById('progress-bar').style.width = "0%";
+
+    // 显示 loader（可选）
+    let loader = document.querySelector('.loader');
+    if (loader) {
+        loader.style.display = "block";
+    }
+
     fetch('/brute-force', {
         method: 'POST',
         headers: {
@@ -673,14 +688,32 @@ background-position: 0 0, 30px 30px;
     })
     .then(response => response.json())
     .then(data => {
-        document.getElementById('brute-force-output').value = data.result;
+        // 隐藏 loader
+        if (loader) {
+            loader.style.display = "none";
+        }
+
+        if (Array.isArray(data.result)) {
+            // 如果返回的是密钥列表
+            document.getElementById('brute-force-output').value = "破解成功，找到的密钥为: " + data.result.join(", ");
+        } else {
+            // 如果返回的是失败信息
+            document.getElementById('brute-force-output').value = data.result;
+        }
+
+        // 更新进度条到 100%
         document.getElementById('progress-bar').style.width = "100%";
     })
     .catch(error => {
         console.error('Error:', error);
+        // 隐藏 loader
+        if (loader) {
+            loader.style.display = "none";
+        }
         alert(error.error || '暴力破解过程中发生错误');
     });
 }
+
 
 
 
