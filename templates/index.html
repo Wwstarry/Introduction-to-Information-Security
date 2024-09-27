@@ -431,7 +431,7 @@ background-position: 0 0, 30px 30px;
             </div>
         </div>
         <div class="form-group">
-            <label for="compare-ciphertext">密文:</label>
+            <label for="compare-ciphertext">密文（二进制）:</label>
             <div class="input-container">
                 <textarea class="input" id="compare-ciphertext" rows="4" placeholder="对应的密文" readonly></textarea>
             </div>
@@ -713,6 +713,49 @@ background-position: 0 0, 30px 30px;
         alert(error.error || '暴力破解过程中发生错误');
     });
 }
+
+
+    // 明密文对照实时更新密文
+    function updateCompareCiphertext() {
+        let mode = document.getElementById("mode").value;
+        let key = document.getElementById("compare-key").value;
+        let plaintext = document.getElementById("compare-plaintext").value;
+        
+        // 简单的输入验证
+        if (!key || !plaintext) {
+            document.getElementById('compare-ciphertext').value = "";
+            return;
+        }
+        
+        // 可选：添加防抖动以减少请求频率
+        clearTimeout(window.compareTimeout);
+        window.compareTimeout = setTimeout(() => {
+            fetch('/compare', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ mode, key, plaintext })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.ciphertext) {
+                    document.getElementById('compare-ciphertext').value = data.ciphertext;
+                } else if (data.error) {
+                    document.getElementById('compare-ciphertext').value = "错误: " + data.error;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('compare-ciphertext').value = "加密过程中发生错误";
+            });
+        }, 300); // 300ms 延迟
+    }
+
+    // 添加事件监听器到明文和密钥输入框
+    document.getElementById('compare-key').addEventListener('input', updateCompareCiphertext);
+    document.getElementById('compare-plaintext').addEventListener('input', updateCompareCiphertext);
+
 
 
 

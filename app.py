@@ -173,6 +173,57 @@ def decrypt_file():
     return Response(decrypted, mimetype='text/plain')
 
 
+@app.route('/compare', methods=['POST'])
+def compare():
+    data = request.json
+    mode = data.get('mode')
+    key = data.get('key')
+    plaintext = data.get('plaintext')
+    
+    logger.info(f"收到明密文对照请求: mode={mode}, key={key}, plaintext={plaintext}")
+    
+    # 密钥校验
+    if not key or not all(c in '01' for c in key):
+        logger.error("密钥无效，密钥必须为二进制字符串")
+        return jsonify({"error": "密钥无效，密钥必须为二进制字符串"}), 400
+    
+    try:
+        # 处理明文，可以是字符串或数字
+        if plaintext.isdigit():
+            plaintext_binary = format(int(plaintext), '08b')  # 将数字转换为8位二进制
+            logger.info(f"将数字明文转换为二进制: {plaintext_binary}")
+        else:
+            # 将字符串转换为二进制字符串
+            plaintext_binary = ''.join(format(ord(c), '08b') for c in plaintext)
+            logger.info(f"将字符串明文转换为二进制: {plaintext_binary}")
+        
+        if mode == 's-aes':
+            if len(key) != 16:
+                logger.error("S-AES 密钥必须为16位二进制字符串")
+                return jsonify({"error": "S-AES 密钥必须为16位二进制字符串"}), 400
+            aes_cipher.SetKey([int(x) for x in key])
+            encrypted = aes_cipher.Encryption([int(x) for x in plaintext_binary])
+            ciphertext = ''.join(map(str, encrypted))
+            logger.info(f"S-AES 加密结果: {ciphertext}")
+        elif mode == 's-des':
+            if len(key) != 10:
+                logger.error("S-DES 密钥必须为10位二进制字符串")
+                return jsonify({"error": "S-DES 密钥必须为10位二进制字符串"}), 400
+            des_cipher.SetKey([int(x) for x in key])
+            encrypted = des_cipher.Encryption([int(x) for x in plaintext_binary])
+            ciphertext = ''.join(map(str, encrypted))
+            logger.info(f"S-DES 加密结果: {ciphertext}")
+        else:
+            logger.error("未知的加密模式")
+            return jsonify({"error": "未知的加密模式"}), 400
+        
+        return jsonify({"ciphertext": ciphertext})
+    except Exception as e:
+        logger.error(f"明密文对照加密失败: {e}")
+        return jsonify({"error": f"加密失败: {str(e)}"}), 500
+
+
+
 def handle_progress_updates(progress_queue):
     """处理进度更新的后台任务."""
     while True:
