@@ -23,11 +23,23 @@ class S_DES():
     def GetKey(self):
         return ''.join(map(str, self.K))
 
-    def Encryption(self, InputBits):
+    def Encryption(self, InputBits, with_steps=False):
+        steps = {}
         Step0 = self.PBox(InputBits=InputBits, PermutationTable=self.IP, OutPutLength=8)
+        steps['initial_plaintext'] = Step0
         Step1 = self.FeistelFunction(Step0, self.K1, self.K2)
-        return self.PBox(InputBits=Step1, PermutationTable=self.IPInverse, OutPutLength=8)
+        steps['roundKey'] = self.GetKey()  # Or the specific round key used
+        Step1_final = self.PBox(InputBits=Step1, PermutationTable=self.IPInverse, OutPutLength=8)
+        steps['ciphertext'] = Step1_final
+        
+        if with_steps:
+            return steps
+        else:
+            return Step1_final  # Return only the final ciphertext if steps are not needed
+        
 
+
+        
     def Decryption(self, InputBits):
         Step0 = self.PBox(InputBits=InputBits, PermutationTable=self.IP, OutPutLength=8)
         Step1 = self.FeistelFunction(Step0, self.K2, self.K1)

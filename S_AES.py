@@ -32,17 +32,59 @@ class S_AES():
                [2, 9]]
         self.IV = []
 
-    def Encryption(self, InputBits):
-        """应该给出16bit的明文。进行加密操作"""
-        Pre_Trans = self.XOR(InputBits, self.w[0] + self.w[1])  # 加轮变换
+
+    def Encryption(self, InputBits, with_steps=False):
+        """应提供16bit的明文进行加密操作，并且根据需要返回每一步骤的中间结果"""
+
+        # 初始化字典，用来存储各步骤的结果
+        result = {
+            "initial_plaintext": InputBits,  # 初始输入
+            "substitution": [],              # 存储半字节替换的结果
+            "shiftRows": [],                 # 存储行位移的结果
+            "mixColumns": [],                # 存储列混淆的结果
+            "ciphertext": []                 # 最终的密文
+        }
+
+        # 第一步：加轮变换
+        Pre_Trans = self.XOR(InputBits, self.w[0] + self.w[1])  # 执行加轮变换
+
+        # 第二步：半字节替换
         Sub_Trans = self.Nibble_Substitution(Pre_Trans, self.NS)  # 半字节替换
+        if with_steps:
+            result["substitution"].append(Sub_Trans)  # 记录第一轮半字节替换的结果
+
+        # 第三步：行位移
         Shift_Trans = self.ShiftRows(Sub_Trans)  # 行位移
+        if with_steps:
+            result["shiftRows"].append(Shift_Trans)  # 记录第一轮行位移的结果
+
+        # 第四步：列混淆
         MC_Trans = self.MixColumns(Shift_Trans, self.MC)  # 列混淆
+        if with_steps:
+            result["mixColumns"].append(MC_Trans)  # 记录第一轮列混淆的结果
+
+        # 第五步：加轮变换
         Pre_Trans_2 = self.XOR(MC_Trans, self.w[2] + self.w[3])
-        Sub_Trans_2 = self.Nibble_Substitution(Pre_Trans_2, self.NS)  # 半字节替换
-        Shift_Trans_2 = self.ShiftRows(Sub_Trans_2)  # 行位移
+
+        # 第六步：半字节替换（第二轮）
+        Sub_Trans_2 = self.Nibble_Substitution(Pre_Trans_2, self.NS)  # 第二轮半字节替换
+        if with_steps:
+            result["substitution"].append(Sub_Trans_2)  # 记录第二轮半字节替换的结果
+
+        # 第七步：行位移（第二轮）
+        Shift_Trans_2 = self.ShiftRows(Sub_Trans_2)  # 第二轮行位移
+        if with_steps:
+            result["shiftRows"].append(Shift_Trans_2)  # 记录第二轮行位移的结果
+
+        # 第八步：加轮变换（最后一步）
         Pre_Trans_3 = self.XOR(Shift_Trans_2, self.w[4] + self.w[5])
-        return Pre_Trans_3
+        result["ciphertext"] = Pre_Trans_3  # 最终的密文
+
+        # 返回包含所有步骤结果的字典
+        return result
+    
+
+
 
     def Decryption(self, InputBits):
         """应该给出16bit的明文。进行加密操作"""
@@ -254,48 +296,3 @@ if __name__ == "__main__":
 
     a_E.SetKey([0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0])
     print(a_D.Encryption(a_E.Encryption(value)))
-
-
-    # text_key = [0, 0, 0, 0]
-    #
-    # matrix = [a_E.Decimal2BinaryList(x) for x in text_key]
-    # row_vector = [element for row in matrix for element in row]
-    #
-    # a_E.SetKey(row_vector)
-    #
-    # text_key_b = [7, 2, 1, 8]
-    # matrix = [a_E.Decimal2BinaryList(x) for x in text_key_b]
-    # row_vector = [element for row in matrix for element in row]
-    # a_D.SetKey(row_vector)
-    #
-    # P_list = [1, 1, 1, 1, 1, 1, 1, 1,
-    #           1, 1, 1, 1, 1, 1, 1, 1]
-    #
-    # C_list = [1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1]
-    #
-    # binary_list = [1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1,
-    #                1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1,
-    #                0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1,
-    #                0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1,
-    #                0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1,
-    #                1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0,
-    #                0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0,
-    #                1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 1, 0]
-    #
-    # a_D.SetIV(P_list)
-    # print(a_D.Decryption_CBC(a_D.Encryption_CBC(binary_list)))
-    # print(a_D.Decryption(C_list))
-    # print(a_E.Encryption(P_list))
-    # key_list =       [1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1]
-    # plaintext_list = [0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0]
-    # plaintext_list2 = [0,1,1,0,1,0,1,1,1,0,1,0,0,0,1,1]
-    #
-    #
-    # g=gf.GF(4)
-    # print(g.mul(4,7))
-    # print(g.add(15,8))
-    # a.SetKey(row_vector)
-    # print(plaintext_list2)
-    # #print(a.Encryption(plaintext_list))
-    # print(a.Decryption(a.Encryption(plaintext_list2)))
-    # print(a.Decryption(a.Encryption([1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0])))

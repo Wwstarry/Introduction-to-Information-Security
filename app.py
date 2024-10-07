@@ -11,268 +11,52 @@ from MultithreadingOfAES import Multi_bruteForce_16, divide_task_16bit, divide_t
 import base64
 from threading import Thread
 from S_DES_ASCII import S_DES_ASCII
+from S_AES_ASCII import S_AES_ASCII
 import time
+
 
 app = Flask(__name__)
 socketio = SocketIO(app)
 
-# 初始化 AES 和 DES 算法实例
+
+
+
+######################################### 初始化算法实例 #########################################
 aes_cipher = S_AES()
 des_cipher = S_DES()
-# 初始化 S_DES 实例
 des_cipher_ascii = S_DES_ASCII()
+aes_cipher_ascii = S_AES_ASCII()
 
-# 临时文件存储路径
+######################################### 临时文件存储路径 #########################################
 UPLOAD_FOLDER = './uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-# 设置日志记录
+######################################### 设置日志记录 #########################################
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+
+######################################### 主页路由 #########################################
 @app.route('/')
 def index():
     return render_template('index.html')  # 渲染index.html页面
 
-# 加密请求
-@app.route('/encrypt', methods=['POST'])
-def encrypt():
-    data = request.json
-    mode = data.get('mode')
-    key = data.get('key')
-    plaintext = data.get('plaintext')
-
-    # 密钥校验
-    if not key or not all(c in '01' for c in key):
-        return jsonify({"error": "密钥无效，密钥必须为二进制字符串"}), 400
-
-    if mode == 's-aes':
-        aes_cipher.SetKey([int(x) for x in key])  # 设置密钥
-        encrypted = aes_cipher.Encryption([int(x) for x in plaintext])  # 执行加密
-    elif mode == 's-des':
-        des_cipher.SetKey([int(x) for x in key])
-        encrypted = des_cipher.Encryption([int(x) for x in plaintext])
-    else:
-        return jsonify({"error": "未知的加密模式"}), 400
-
-    encrypted_str = ''.join(map(str, encrypted))
-    return jsonify({"ciphertext": encrypted_str})
-
-# 解密请求
-@app.route('/decrypt', methods=['POST'])
-def decrypt():
-    data = request.json
-    mode = data.get('mode')
-    key = data.get('key')
-    ciphertext = data.get('ciphertext')
-
-    if not key or not all(c in '01' for c in key):
-        return jsonify({"error": "密钥无效，密钥必须为二进制字符串"}), 400
-
-    if mode == 's-aes':
-        aes_cipher.SetKey([int(x) for x in key])
-        decrypted = aes_cipher.Decryption([int(x) for x in ciphertext])
-    elif mode == 's-des':
-        des_cipher.SetKey([int(x) for x in key])
-        decrypted = des_cipher.Decryption([int(x) for x in ciphertext])
-    else:
-        return jsonify({"error": "未知的解密模式"}), 400
-
-    decrypted_str = ''.join(map(str, decrypted))
-    return jsonify({"plaintext": decrypted_str})
-
-# 加密文件请求
-@app.route('/encrypt-file', methods=['POST'])
-def encrypt_file():
-    file = request.files['file']
-    key = request.form['key']
-    mode = request.form['mode']
-
-    # 校验密钥是否为有效的二进制字符串
-    if not key or not all(c in '01' for c in key):
-        return jsonify({"error": "密钥无效，密钥必须为二进制字符串"}), 400
-
-    # 根据加密模式验证密钥长度
-    if mode == 's-aes' and len(key) != 16:
-        return jsonify({"error": "S-AES 密钥必须为16位二进制字符串"}), 400
-    if mode == 's-des' and len(key) != 10:
-        return jsonify({"error": "S-DES 密钥必须为10位二进制字符串"}), 400
-
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(filepath)
-
-    # 读取文件内容并将其视为 ASCII 文本
-    try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            content = f.read()
-    except Exception as e:
-        logger.error(f"读取文件失败: {e}")
-        return jsonify({"error": "读取文件失败"}), 500
-
-    # 根据加密模式执行加密
-    try:
-        if mode == 's-aes':
-            aes_cipher.SetKey([int(x) for x in key])
-            encrypted = aes_cipher.Encryption_ASCII(content)
-        elif mode == 's-des':
-            des_cipher.SetKey([int(x) for x in key])
-            encrypted = des_cipher.Encryption_ASCII(content)
-        else:
-            return jsonify({"error": "未知的加密模式"}), 400
-    except Exception as e:
-        logger.error(f"加密失败: {e}")
-        return jsonify({"error": "加密失败"}), 500
-
-    # 返回加密结果作为纯文本
-    return Response(encrypted, mimetype='text/plain')
 
 
-@app.route('/encrypt_ascii', methods=['POST'])
-def encrypt_ascii():
-    data = request.get_json()
-    mode = data.get('mode')
-    key = data.get('key')
-    plaintext = data.get('plaintext')
+######################################### 工具函数 #########################################
 
-    # 如果是ASCII模式
-    if mode == 's-des':
-        des_cipher_ascii.SetKey([int(bit) for bit in key])  # 设置密钥
-        try:
-            ciphertext = des_cipher_ascii.Encryption_ASCII(plaintext, des_cipher_ascii.K)
-            return jsonify({'ciphertext': ciphertext})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 400
-    return jsonify({'error': 'Invalid mode or data'}), 400
-
-@app.route('/decrypt_ascii', methods=['POST'])
-def decrypt_ascii():
-    data = request.get_json()
-    mode = data.get('mode')
-    key = data.get('key')
-    ciphertext = data.get('ciphertext')
-
-    # 如果是ASCII模式
-    if mode == 's-des':
-        des_cipher_ascii.SetKey([int(bit) for bit in key])  # 设置密钥
-        try:
-            plaintext = des_cipher_ascii.Decryption_ASCII(ciphertext, des_cipher_ascii.K)
-            return jsonify({'plaintext': plaintext})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 400
-    return jsonify({'error': 'Invalid mode or data'}), 400
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 解密文件请求
-@app.route('/decrypt-file', methods=['POST'])
-def decrypt_file():
-    file = request.files['file']
-    key = request.form['key']
-    mode = request.form['mode']
-
-    # 校验密钥是否为有效的二进制字符串
-    if not key or not all(c in '01' for c in key):
-        return jsonify({"error": "密钥无效，密钥必须为二进制字符串"}), 400
-
-    # 根据解密模式验证密钥长度
-    if mode == 's-aes' and len(key) != 16:
-        return jsonify({"error": "S-AES 密钥必须为16位二进制字符串"}), 400
-    if mode == 's-des' and len(key) != 10:
-        return jsonify({"error": "S-DES 密钥必须为10位二进制字符串"}), 400
-
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(filepath)
-
-    # 读取文件内容并将其视为 ASCII 文本
-    try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            content = f.read()
-    except Exception as e:
-        logger.error(f"读取文件失败: {e}")
-        return jsonify({"error": "读取文件失败"}), 500
-
-    # 根据解密模式执行解密
-    try:
-        if mode == 's-aes':
-            aes_cipher.SetKey([int(x) for x in key])
-            decrypted = aes_cipher.Decryption_ASCII(content)
-        elif mode == 's-des':
-            des_cipher.SetKey([int(x) for x in key])
-            decrypted = des_cipher.Decryption_ASCII(content)
-        else:
-            return jsonify({"error": "未知的解密模式"}), 400
-    except Exception as e:
-        logger.error(f"解密失败: {e}")
-        return jsonify({"error": "解密失败"}), 500
-
-    # 返回解密结果作为纯文本
-    return Response(decrypted, mimetype='text/plain')
-
-
-
-@app.route('/compare', methods=['POST'])
-def compare():
-    data = request.json
-    mode = data.get('mode')
-    key = data.get('key')
-    plaintext = data.get('plaintext')
-    
-    logger.info(f"收到明密文对照请求: mode={mode}, key={key}, plaintext={plaintext}")
-    
-    # 密钥校验
-    if not key or not all(c in '01' for c in key):
-        logger.error("密钥无效，密钥必须为二进制字符串")
-        return jsonify({"error": "密钥无效，密钥必须为二进制字符串"}), 400
-    
-    try:
-        # 处理明文，可以是字符串或数字
-        if plaintext.isdigit():
-            plaintext_binary = format(int(plaintext), '08b')  # 将数字转换为8位二进制
-            logger.info(f"将数字明文转换为二进制: {plaintext_binary}")
-        else:
-            # 将字符串转换为二进制字符串
-            plaintext_binary = ''.join(format(ord(c), '08b') for c in plaintext)
-            logger.info(f"将字符串明文转换为二进制: {plaintext_binary}")
-        
-        if mode == 's-aes':
-            if len(key) != 16:
-                logger.error("S-AES 密钥必须为16位二进制字符串")
-                return jsonify({"error": "S-AES 密钥必须为16位二进制字符串"}), 400
-            aes_cipher.SetKey([int(x) for x in key])
-            encrypted = aes_cipher.Encryption([int(x) for x in plaintext_binary])
-            ciphertext = ''.join(map(str, encrypted))
-            logger.info(f"S-AES 加密结果: {ciphertext}")
-        elif mode == 's-des':
-            if len(key) != 10:
-                logger.error("S-DES 密钥必须为10位二进制字符串")
-                return jsonify({"error": "S-DES 密钥必须为10位二进制字符串"}), 400
-            des_cipher.SetKey([int(x) for x in key])
-            encrypted = des_cipher.Encryption([int(x) for x in plaintext_binary])
-            ciphertext = ''.join(map(str, encrypted))
-            logger.info(f"S-DES 加密结果: {ciphertext}")
-        else:
-            logger.error("未知的加密模式")
-            return jsonify({"error": "未知的加密模式"}), 400
-        
-        return jsonify({"ciphertext": ciphertext})
-    except Exception as e:
-        logger.error(f"明密文对照加密失败: {e}")
-        return jsonify({"error": f"加密失败: {str(e)}"}), 500
-
-
+def format_matrix(binary_list, width=4):
+    """将二进制列表格式化为指定宽度的矩阵形式，转换为十六进制格式并对齐"""
+    hex_matrix = []
+    for i in range(0, len(binary_list), width):
+        # 提取当前行的 4 个元素
+        row = binary_list[i:i + width]
+        # 将二进制转换为 16 进制并格式化为 2 位对齐
+        hex_row = ' '.join(f'{int("".join(map(str, row[j:j+4])), 2):02X}' for j in range(0, len(row), 4))
+        hex_matrix.append(hex_row)
+    return hex_matrix
 
 def handle_progress_updates(progress_queue):
     """处理进度更新的后台任务."""
@@ -285,7 +69,6 @@ def handle_progress_updates(progress_queue):
         except Exception as e:
             logger.error(f"进度更新时遇到错误: {e}")
             break
-
 
 # 定义暴力破解任务函数
 def brute_force_worker(start, end, plaintext, ciphertext, mode, result_queue, progress_queue):
@@ -357,6 +140,288 @@ def run_brute_force(threads_num, plaintext, ciphertext, mode):
 
     return found_keys, time_taken
 
+def handle_progress_updates(progress_queue):
+    """Handle progress updates as a background task."""
+    while True:
+        try:
+            progress = progress_queue.get()
+            # Emit progress update to front-end
+            socketio.emit('progress_update', {'progress': progress})
+        except Exception as e:
+            logger.error(f"进度更新时遇到错误: {e}")
+            break
+
+
+######################################### 路由设置 #########################################
+
+# 加密请求
+@app.route('/encrypt', methods=['POST'])
+def encrypt():
+    data = request.json
+    mode = data.get('mode')
+    key = data.get('key')
+    plaintext = data.get('plaintext')
+
+    # 检查输入数据是否正确
+    print(f"Received data: mode={mode}, key={key}, plaintext={plaintext}")
+
+
+    # 加密步骤
+    if mode == 's-aes':
+        aes_cipher.SetKey([int(x) for x in key])
+        result = aes_cipher.Encryption([int(x) for x in plaintext], with_steps=True)
+    elif mode == 's-des':
+        des_cipher.SetKey([int(x) for x in key])
+        result = des_cipher.Encryption([int(x) for x in plaintext], with_steps=True)
+    else:
+        return jsonify({"error": "未知的加密模式"}), 400
+
+    # 对每个步骤的结果进行格式化处理（4×4 矩阵形式）
+    formatted_substitution = [format_matrix(sub) for sub in result.get('substitution', [])]
+    formatted_shiftRows = [format_matrix(shift) for shift in result.get('shiftRows', [])]
+    formatted_mixColumns = [format_matrix(mix) for mix in result.get('mixColumns', [])]
+
+    response = {
+        "ciphertext": ''.join(map(str, result.get('ciphertext', []))),
+        "initial_plaintext": format_matrix(result.get('initial_plaintext', [])),
+        "roundKey": result.get('roundKey', []),
+        "substitution": formatted_substitution,
+        "shiftRows": formatted_shiftRows,
+        "mixColumns": formatted_mixColumns
+    }
+
+    # 打印返回的数据，检查是否包含所有需要的字段
+    print(f"Response data: {response}")
+
+    return jsonify(response)
+
+
+# 解密请求
+@app.route('/decrypt', methods=['POST'])
+def decrypt():
+    data = request.json
+    mode = data.get('mode')
+    key = data.get('key')
+    ciphertext = data.get('ciphertext')
+
+    if not key or not all(c in '01' for c in key):
+        return jsonify({"error": "密钥无效，密钥必须为二进制字符串"}), 400
+
+    if mode == 's-aes':
+        aes_cipher.SetKey([int(x) for x in key])
+        decrypted = aes_cipher.Decryption([int(x) for x in ciphertext])
+    elif mode == 's-des':
+        des_cipher.SetKey([int(x) for x in key])
+        decrypted = des_cipher.Decryption([int(x) for x in ciphertext])
+    else:
+        return jsonify({"error": "未知的解密模式"}), 400
+
+    decrypted_str = ''.join(map(str, decrypted))
+    return jsonify({"plaintext": decrypted_str})
+
+
+
+
+@app.route('/encrypt_ascii', methods=['POST'])
+def encrypt_ascii():
+    data = request.get_json()
+    mode = data.get('mode')
+    key = data.get('key')
+    plaintext = data.get('plaintext')
+
+    # 如果是ASCII模式
+    if mode == 's-des':
+        des_cipher_ascii.SetKey([int(bit) for bit in key])  # 设置 DES 密钥
+        try:
+            ciphertext = des_cipher_ascii.Encryption_ASCII(plaintext, des_cipher_ascii.K)
+            return jsonify({'ciphertext': ciphertext})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 400
+    
+    elif mode == 's-aes':
+        aes_cipher_ascii.SetKey([int(bit) for bit in key])  # 设置 AES 密钥
+        try:
+            ciphertext = aes_cipher_ascii.Encryption_ASCII(plaintext)
+            return jsonify({'ciphertext': ciphertext})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 400
+
+    return jsonify({'error': 'Invalid mode or data'}), 400
+
+
+@app.route('/decrypt_ascii', methods=['POST'])
+def decrypt_ascii():
+    data = request.get_json()
+    mode = data.get('mode')
+    key = data.get('key')
+    ciphertext = data.get('ciphertext')
+
+    # 如果是ASCII模式
+    if mode == 's-des':
+        des_cipher_ascii.SetKey([int(bit) for bit in key])  # 设置 DES 密钥
+        try:
+            plaintext = des_cipher_ascii.Decryption_ASCII(ciphertext, des_cipher_ascii.K)
+            return jsonify({'plaintext': plaintext})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 400
+    
+    elif mode == 's-aes':
+        aes_cipher_ascii.SetKey([int(bit) for bit in key])  # 设置 AES 密钥
+        try:
+            plaintext = aes_cipher_ascii.Decryption_ASCII(ciphertext)
+            return jsonify({'plaintext': plaintext})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 400
+
+    return jsonify({'error': 'Invalid mode or data'}), 400
+
+
+
+# 加密文件请求
+@app.route('/encrypt-file', methods=['POST'])
+def encrypt_file():
+    file = request.files['file']
+    key = request.form['key']
+    mode = request.form['mode']
+
+    # 校验密钥是否为有效的二进制字符串
+    if not key or not all(c in '01' for c in key):
+        return jsonify({"error": "密钥无效，密钥必须为二进制字符串"}), 400
+
+    # 根据加密模式验证密钥长度
+    if mode == 's-aes' and len(key) != 16:
+        return jsonify({"error": "S-AES 密钥必须为16位二进制字符串"}), 400
+    if mode == 's-des' and len(key) != 10:
+        return jsonify({"error": "S-DES 密钥必须为10位二进制字符串"}), 400
+
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(filepath)
+
+    # 读取文件内容并将其视为 ASCII 文本
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except Exception as e:
+        logger.error(f"读取文件失败: {e}")
+        return jsonify({"error": "读取文件失败"}), 500
+
+    # 根据加密模式执行加密
+    try:
+        if mode == 's-aes':
+            aes_cipher.SetKey([int(x) for x in key])
+            encrypted = aes_cipher.Encryption_ASCII(content)
+        elif mode == 's-des':
+            des_cipher.SetKey([int(x) for x in key])
+            encrypted = des_cipher.Encryption_ASCII(content)
+        else:
+            return jsonify({"error": "未知的加密模式"}), 400
+    except Exception as e:
+        logger.error(f"加密失败: {e}")
+        return jsonify({"error": "加密失败"}), 500
+
+    # 返回加密结果作为纯文本
+    return Response(encrypted, mimetype='text/plain')
+
+
+# 解密文件请求
+@app.route('/decrypt-file', methods=['POST'])
+def decrypt_file():
+    file = request.files['file']
+    key = request.form['key']
+    mode = request.form['mode']
+
+    # 校验密钥是否为有效的二进制字符串
+    if not key or not all(c in '01' for c in key):
+        return jsonify({"error": "密钥无效，密钥必须为二进制字符串"}), 400
+
+    # 根据解密模式验证密钥长度
+    if mode == 's-aes' and len(key) != 16:
+        return jsonify({"error": "S-AES 密钥必须为16位二进制字符串"}), 400
+    if mode == 's-des' and len(key) != 10:
+        return jsonify({"error": "S-DES 密钥必须为10位二进制字符串"}), 400
+
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(filepath)
+
+    # 读取文件内容并将其视为 ASCII 文本
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except Exception as e:
+        logger.error(f"读取文件失败: {e}")
+        return jsonify({"error": "读取文件失败"}), 500
+
+    # 根据解密模式执行解密
+    try:
+        if mode == 's-aes':
+            aes_cipher.SetKey([int(x) for x in key])
+            decrypted = aes_cipher.Decryption_ASCII(content)
+        elif mode == 's-des':
+            des_cipher.SetKey([int(x) for x in key])
+            decrypted = des_cipher.Decryption_ASCII(content)
+        else:
+            return jsonify({"error": "未知的解密模式"}), 400
+    except Exception as e:
+        logger.error(f"解密失败: {e}")
+        return jsonify({"error": "解密失败"}), 500
+
+    # 返回解密结果作为纯文本
+    return Response(decrypted, mimetype='text/plain')
+
+
+# 明密文对照
+@app.route('/compare', methods=['POST'])
+def compare():
+    data = request.json
+    mode = data.get('mode')
+    key = data.get('key')
+    plaintext = data.get('plaintext')
+    
+    logger.info(f"收到明密文对照请求: mode={mode}, key={key}, plaintext={plaintext}")
+    
+    # 密钥校验
+    if not key or not all(c in '01' for c in key):
+        logger.error("密钥无效，密钥必须为二进制字符串")
+        return jsonify({"error": "密钥无效，密钥必须为二进制字符串"}), 400
+    
+    try:
+        # 处理明文，可以是字符串或数字
+        if plaintext.isdigit():
+            plaintext_binary = format(int(plaintext), '08b')  # 将数字转换为8位二进制
+            logger.info(f"将数字明文转换为二进制: {plaintext_binary}")
+        else:
+            # 将字符串转换为二进制字符串
+            plaintext_binary = ''.join(format(ord(c), '08b') for c in plaintext)
+            logger.info(f"将字符串明文转换为二进制: {plaintext_binary}")
+        
+        if mode == 's-aes':
+            if len(key) != 16:
+                logger.error("S-AES 密钥必须为16位二进制字符串")
+                return jsonify({"error": "S-AES 密钥必须为16位二进制字符串"}), 400
+            aes_cipher.SetKey([int(x) for x in key])
+            encrypted = aes_cipher.Encryption([int(x) for x in plaintext_binary])
+            ciphertext = ''.join(map(str, encrypted))
+            logger.info(f"S-AES 加密结果: {ciphertext}")
+        elif mode == 's-des':
+            if len(key) != 10:
+                logger.error("S-DES 密钥必须为10位二进制字符串")
+                return jsonify({"error": "S-DES 密钥必须为10位二进制字符串"}), 400
+            des_cipher.SetKey([int(x) for x in key])
+            encrypted = des_cipher.Encryption([int(x) for x in plaintext_binary])
+            ciphertext = ''.join(map(str, encrypted))
+            logger.info(f"S-DES 加密结果: {ciphertext}")
+        else:
+            logger.error("未知的加密模式")
+            return jsonify({"error": "未知的加密模式"}), 400
+        
+        return jsonify({"ciphertext": ciphertext})
+    except Exception as e:
+        logger.error(f"明密文对照加密失败: {e}")
+        return jsonify({"error": f"加密失败: {str(e)}"}), 500
+
+
 # Flask接口，用于接收暴力破解请求
 @app.route('/brute-force', methods=['POST'])
 def brute_force():
@@ -394,21 +459,9 @@ def brute_force():
         return jsonify({"result": "破解失败，未找到匹配的密钥", "time_taken": f"破解用时: {time_taken:.2f} 秒"})
 
 
-def handle_progress_updates(progress_queue):
-    """Handle progress updates as a background task."""
-    while True:
-        try:
-            progress = progress_queue.get()
-            # Emit progress update to front-end
-            socketio.emit('progress_update', {'progress': progress})
-        except Exception as e:
-            logger.error(f"进度更新时遇到错误: {e}")
-            break
-
 
 # 处理进度更新
 if __name__ == '__main__':
     app.run(debug=True)
 
-# if __name__ == '__main__':
-#     socketio.run(app, debug=True)
+

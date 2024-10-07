@@ -13,21 +13,6 @@
             color: #555555;
             
         }
-
-        /* body {
-
-font-family: 'Arial', sans-serif;
-color: #555555;
---color1: #f0f8ff;
---color2: #87b4db;
-background-color: var(--color1);
-background-image: linear-gradient(45deg, var(--color2) 25%, transparent 25%, transparent 75%, var(--color2) 75%, var(--color2)), 
-        linear-gradient(45deg, var(--color2) 25%, var(--color1) 25%, var(--color1) 75%, var(--color2) 75%, var(--color2));
-background-size: 60px 60px;
-background-position: 0 0, 30px 30px;
-
-} */
-
 /* 设置容器，使标题与按钮居中显示 */
 .header-container {
     display: flex;
@@ -428,6 +413,33 @@ h1 {
         }
 
 
+        #visualization {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f8ff;
+            border-radius: 10px;
+            box-shadow: 4px 4px black;
+        }
+
+        #visualization div {
+            border: 2px solid #000;
+            padding: 15px;
+            background-color: #fff;
+            box-shadow: 2px 2px black;
+            border-radius: 8px;
+            transition: box-shadow 0.2s, transform 0.2s;
+            min-height: 60px;
+        }
+
+        #visualization div:hover {
+            transform: translate(3px, 3px);
+            box-shadow: 1px 1px black;
+        }
+
+
 
         
     </style>
@@ -491,31 +503,7 @@ h1 {
     <div id="bit-mode" class="section active">
         <h3>bit模式</h3>
         <form id="crypto-form">
-            <!-- 密钥输入框 -->
-            <!-- <div class="form-group">
-                <label for="key">密钥 (二进制):</label>
-                <div class="input-container">
-                    <input type="text" class="input" id="key" placeholder="请输入密钥">
-                </div>
-            </div> -->
 
-            <!-- 明文输入框 -->
-            <!-- <div class="form-group">
-                <label for="plaintext">明文:</label>
-                <div class="input-container">
-                    <textarea class="input" id="plaintext" rows="1" placeholder="请输入明文"></textarea>
-                </div>
-            </div> -->
-
-
-            <!-- 密文输出框 -->
-            <!-- <div class="form-group">
-                <label for="ciphertext">密文:</label>
-                <div class="input-container">
-                    <textarea class="input" id="ciphertext" rows="1" placeholder="加密/解密结果" readonly></textarea>
-                </div>
-            </div> -->
-            <!-- 密钥输入框 -->
 <div class="form-group">
     <label for="key">密钥 (二进制):</label>
     <div class="input-container">
@@ -547,6 +535,18 @@ h1 {
                 <button type="button" class="btn btn-custom" onclick="startEncryption()">加密</button>
                 <button type="button" class="btn btn-custom" onclick="startDecryption()">解密</button>
             </div>
+
+
+            <h4>加密过程可视化</h4>
+            <div id="visualization">
+                <div><h5>初始明文</h5><div id="plaintext-display"></div></div>
+                <div><h5>轮密钥</h5><div id="round-key-display"></div></div>
+                <div><h5>字节替换</h5><div id="substitution-display"></div></div>
+                <div><h5>行移位</h5><div id="shift-rows-display"></div></div>
+                <div><h5>列混淆</h5><div id="mix-columns-display"></div></div>
+                <div><h5>加密后密文</h5><div id="ciphertext-display"></div></div>
+            </div>
+
         </form>
     </div>
 
@@ -587,6 +587,8 @@ h1 {
                 <button type="button" class="btn btn-custom" onclick="startEncryptionASCII()">加密</button>
                 <button type="button" class="btn btn-custom" onclick="startDecryptionASCII()">解密</button>
             </div>
+
+
         </form>
     </div>
 
@@ -672,6 +674,8 @@ h1 {
 
 </div>
 
+
+
 <script>
 
 
@@ -689,33 +693,54 @@ h1 {
         event.target.classList.add('active');
     }
 
-// 加密函数
-function startEncryption() {
-    let mode = document.getElementById("mode").value; // 假设您有加密模式选择
-    let key = document.getElementById("key").value;
-    let plaintext = document.getElementById("plaintext").value;
+    // // 切换显示不同的部分
+    // function switchSection(sectionId, event) {
+    //     document.querySelectorAll('.section').forEach(section => section.classList.remove('active'));
+    //     document.getElementById(sectionId).classList.add('active');
+    //     document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+    //     event.target.classList.add('active');
+    // }
 
-    fetch('/encrypt', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ mode, key, plaintext })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.ciphertext) {
-            // 在密文框显示加密结果
-            document.getElementById('ciphertext').value = data.ciphertext;
-        } else if (data.error) {
-            alert(data.error);
+    // 格式化数据为表格
+    function formatToGrid(data) {
+        if (!data || data.length === 0) return '<p>无数据</p>';
+        let formatted = '<table>';
+        for (let i = 0; i < data.length; i += 4) {
+            formatted += `<tr><td>${data[i] || ''}</td><td>${data[i + 1] || ''}</td><td>${data[i + 2] || ''}</td><td>${data[i + 3] || ''}</td></tr>`;
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('加密过程中发生错误');
-    });
-}
+        formatted += '</table>';
+        return formatted;
+    }
+
+    // 启动加密
+    function startEncryption() {
+        let mode = document.getElementById("mode").value;
+        let key = document.getElementById("key").value;
+        let plaintext = document.getElementById("plaintext").value;
+
+        fetch('/encrypt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode, key, plaintext })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.ciphertext) {
+                document.getElementById('ciphertext-display').innerHTML = data.ciphertext;
+                document.getElementById('plaintext-display').innerHTML = formatToGrid(data.initial_plaintext || []);
+                document.getElementById('round-key-display').innerHTML = formatToGrid(data.roundKey || []);
+                document.getElementById('substitution-display').innerHTML = formatToGrid(data.substitution || []);
+                document.getElementById('shift-rows-display').innerHTML = formatToGrid(data.shiftRows || []);
+                document.getElementById('mix-columns-display').innerHTML = formatToGrid(data.mixColumns || []);
+            } else if (data.error) {
+                alert(data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('加密过程中发生错误');
+        });
+    }
 
 // 解密函数
 function startDecryption() {
@@ -745,73 +770,6 @@ function startDecryption() {
     });
 }
 
-
-
-    // 切换显示不同的部分
-    function switchSection(sectionId) {
-        document.querySelectorAll('.section').forEach(section => {
-            section.classList.remove('active');
-        });
-        document.getElementById(sectionId).classList.add('active');
-        
-        // 更新导航栏的状态
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.classList.remove('active');
-        });
-        event.target.classList.add('active');
-    }
-
-    function startEncryption() {
-        let mode = document.getElementById("mode").value;
-        let key = document.getElementById("key").value;
-        let plaintext = document.getElementById("plaintext").value;
-
-        fetch('/encrypt', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ mode, key, plaintext })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.ciphertext) {
-                document.getElementById('ciphertext').value = data.ciphertext;
-            } else if (data.error) {
-                alert(data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('加密过程中发生错误');
-        });
-    }
-
-    function startDecryption() {
-        let mode = document.getElementById("mode").value;
-        let key = document.getElementById("key").value;
-        let ciphertext = document.getElementById("ciphertext").value;
-
-        fetch('/decrypt', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ mode, key, ciphertext })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.plaintext) {
-                document.getElementById('plaintext').value = data.plaintext;
-            } else if (data.error) {
-                alert(data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('解密过程中发生错误');
-        });
-    }
 
     // 文件加密
     function encryptFile() {
@@ -970,6 +928,8 @@ function startDecryption() {
         }, 300); // 300ms 延迟
     }
 
+
+
     // 添加事件监听器到明文和密钥输入框
     document.getElementById('compare-key').addEventListener('input', updateCompareCiphertext);
     document.getElementById('compare-plaintext').addEventListener('input', updateCompareCiphertext);
@@ -1028,12 +988,8 @@ function startDecryption() {
         });
     }
 
-
-
-
         
 </script>
-
 
 </body>
 </html>
