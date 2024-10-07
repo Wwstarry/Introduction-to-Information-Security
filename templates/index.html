@@ -372,7 +372,7 @@ h1 {
         }
 
         .progress-bar {
-            background-color: #2d8cf0;
+            background-color: rgb(105, 172, 195);
             height: 100%;
             border-radius: 5px;
             transition: width 0.5s;
@@ -913,10 +913,10 @@ function startDecryption() {
 
         if (Array.isArray(data.result)) {
             // 如果返回的是密钥列表
-            document.getElementById('brute-force-output').value = "破解成功，找到的密钥为: " + data.result.join(", ");
+            document.getElementById('brute-force-output').value = "破解成功，找到的密钥为: \n" + data.result.join("\n ")+ "\n" + data.time_taken;
         } else {
             // 如果返回的是失败信息
-            document.getElementById('brute-force-output').value = data.result;
+            document.getElementById('brute-force-output').value = data.result+ "\n" + data.time_taken;
         }
 
         // 更新进度条到 100%

@@ -11,7 +11,7 @@ from MultithreadingOfAES import Multi_bruteForce_16, divide_task_16bit, divide_t
 import base64
 from threading import Thread
 from S_DES_ASCII import S_DES_ASCII
-
+import time
 
 app = Flask(__name__)
 socketio = SocketIO(app)
@@ -287,71 +287,111 @@ def handle_progress_updates(progress_queue):
             break
 
 
-# 暴力破解请求
-def run_brute_force(threads_num, plaintext, ciphertext, mode, queue, finish_queue, progress_queue, lock, event, trans_queue):
-    if mode == 's-aes':
-        task_list = divide_task_16bit(threads_num)
-        processes = []
-        for i in range(threads_num):
-            p = Multi_bruteForce_16(
-                id=i,
-                start_point=task_list[i][0],
-                end_point=task_list[i][1],
-                P=plaintext,
-                C=ciphertext,
-                Queue=queue,
-                finshQueue=finish_queue,
-                Progress=progress_queue,
-                lock=lock,
-                event=event,
-                T_Queue=trans_queue
-            )
-            processes.append(p)
-            p.start()
-            logger.info(f"Process:{i} 已启动")
-    elif mode == 's-des':
-        task_list = divide_task(threads_num)
-        processes = []
-        for i in range(threads_num):
-            p = Multi_bruteForce(
-                id=i,
-                start_point=task_list[i][0],
-                end_point=task_list[i][1],
-                P=plaintext,
-                C=ciphertext,
-                Queue=queue,
-                finshQueue=finish_queue,
-                Progress=progress_queue,
-                lock=lock,
-                event=event,
-                T_Queue=trans_queue
-            )
-            processes.append(p)
-            p.start()
-            logger.info(f"Process:{i} 已启动")
-    else:
-        logger.error("未知的加密模式")
-        return
+# 定义暴力破解任务函数
+def brute_force_worker(start, end, plaintext, ciphertext, mode, result_queue, progress_queue):
+    for guess_key in range(start, end):
+        guess_key_bin = format(guess_key, 'b').zfill(16 if mode == 's-aes' else 10)  # 根据模式填充为二进制
 
-    # Start background task to handle progress updates
-    socketio.start_background_task(handle_progress_updates, progress_queue)
+        if mode == 's-des':
+            # 使用现有的 s-des 加密逻辑
+            des_cipher.SetKey([int(x) for x in guess_key_bin])
+            guess_cipher = des_cipher.Encryption([int(x) for x in plaintext])
+        elif mode == 's-aes':
+            # 使用现有的 s-aes 加密逻辑
+            aes_cipher.SetKey([int(x) for x in guess_key_bin])
+            guess_cipher = aes_cipher.Encryption([int(x) for x in plaintext])
+        else:
+            raise ValueError("未知的加密模式")
 
-    # Wait for all processes to finish
+        # 进度报告
+        progress_queue.put(guess_key)
+
+        # 如果找到匹配的密文，记录密钥（不退出）
+        if ''.join(map(str, guess_cipher)) == ''.join(map(str, ciphertext)):
+            result_queue.put(guess_key_bin)  # 找到匹配密钥
+            # 不退出，继续查找剩余的密钥
+
+# 分割任务，将搜索空间平均分配给多个进程
+def divide_task(threads_num, key_space_size):
+    step = key_space_size // threads_num
+    task_list = [(i * step, (i + 1) * step) for i in range(threads_num)]
+    task_list[-1] = (task_list[-1][0], key_space_size)  # 确保最后一个任务涵盖剩余的空间
+    return task_list
+
+# 主暴力破解函数，启动多进程任务并记录破解时间
+def run_brute_force(threads_num, plaintext, ciphertext, mode):
+    start_time = time.time()  # 记录开始时间
+    key_space_size = 2 ** 10 if mode == 's-des' else 2 ** 16  # 假设s-des为10位密钥，s-aes为16位密钥
+    task_list = divide_task(threads_num, key_space_size)
+    result_queue = multiprocessing.Queue()
+    progress_queue = multiprocessing.Queue()
+
+    processes = []
+    for start, end in task_list:
+        p = multiprocessing.Process(target=brute_force_worker, args=(start, end, plaintext, ciphertext, mode, result_queue, progress_queue))
+        processes.append(p)
+        p.start()
+
+    # 收集进程结果和进度
+    found_keys = []
+    total_progress = 0
+    while any(p.is_alive() for p in processes):
+        try:
+            progress = progress_queue.get_nowait()
+            total_progress += 1
+            print(f"Progress: {total_progress}/{key_space_size}")
+        except:
+            pass
+        
+        # 检查结果队列是否有匹配密钥
+        while not result_queue.empty():
+            found_key = result_queue.get()
+            found_keys.append(found_key)  # 收集所有找到的密钥
+
+    # 等待所有进程结束
     for p in processes:
         p.join()
 
-    # Collect results
-    results = []
-    while not queue.empty():
-        results.append(queue.get())
+    end_time = time.time()  # 记录结束时间
+    time_taken = end_time - start_time  # 计算总耗时
 
-    if results:
-        keys = [result[1] for result in results]
-        logger.info(f"暴力破解成功，找到密钥: {keys}")
-        socketio.emit('key_found', {'key': keys})
+    return found_keys, time_taken
+
+# Flask接口，用于接收暴力破解请求
+@app.route('/brute-force', methods=['POST'])
+def brute_force():
+    data = request.json
+    threads_num = int(data.get('threads', 4))
+    plaintext = [int(bit) for bit in data.get('plaintext')]
+    ciphertext = [int(bit) for bit in data.get('ciphertext')]
+    mode = data.get('mode')  # 's-aes' 或 's-des'
+
+    if not plaintext or not ciphertext or not mode:
+        return jsonify({"error": "请输入有效的明文、密文和加密模式"}), 400
+
+    print(f"开始暴力破解: 线程数={threads_num}, 明文={plaintext}, 密文={ciphertext}, 模式={mode}")
+
+    # 启动暴力破解任务
+    brute_force_thread = Thread(target=run_brute_force, args=(threads_num, plaintext, ciphertext, mode))
+    brute_force_thread.start()
+    brute_force_thread.join()
+
+    # 检查结果
+    found_keys, time_taken = run_brute_force(threads_num, plaintext, ciphertext, mode)
+
+    if found_keys:
+        # 格式化输出
+        formatted_keys = []
+        for i, key in enumerate(found_keys):
+            formatted_key = '[{}]'.format(' '.join(key))
+            formatted_keys.append(f"暴力解出的密钥{i+1}是: {formatted_key}")
+        
+        return jsonify({
+            "result": formatted_keys,
+            "time_taken": f"破解用时: {time_taken:.2f} 秒"
+        })
     else:
-        logger.info("暴力破解失败，未找到匹配的密钥")
-        socketio.emit('key_found', {'key': []})
+        return jsonify({"result": "破解失败，未找到匹配的密钥", "time_taken": f"破解用时: {time_taken:.2f} 秒"})
 
 
 def handle_progress_updates(progress_queue):
@@ -365,97 +405,6 @@ def handle_progress_updates(progress_queue):
             logger.error(f"进度更新时遇到错误: {e}")
             break
 
-
-@app.route('/brute-force', methods=['POST'])
-def brute_force():
-    data = request.json
-    threads_num = int(data.get('threads', 4))
-    plaintext = data.get('plaintext')
-    ciphertext = data.get('ciphertext')
-    mode = data.get('mode')  # 's-aes' 或 's-des'
-
-    if not plaintext or not ciphertext or not mode:
-        return jsonify({"error": "请输入有效的明文、密文和加密模式"}), 400
-
-    logger.info(f"开始暴力破解: 线程数={threads_num}, 明文={plaintext}, 密文={ciphertext}, 模式={mode}")
-
-    # 初始化 multiprocessing Manager 和 Queues
-    manager = multiprocessing.Manager()
-    queue = manager.Queue()
-    finish_queue = manager.Queue()
-    progress_queue = manager.Queue()
-    lock = manager.Lock()
-    event = manager.Event()
-    trans_queue = manager.Queue()
-
-    # 定义暴力破解任务
-    def run_brute_force():
-        if mode == 's-aes':
-            task_list = divide_task_16bit(threads_num)
-            processes = []
-            for i in range(threads_num):
-                p = Multi_bruteForce_16(
-                    id=i,
-                    start_point=task_list[i][0],
-                    end_point=task_list[i][1],
-                    P=plaintext,
-                    C=ciphertext,
-                    Queue=queue,
-                    finshQueue=finish_queue,
-                    Progress=progress_queue,
-                    lock=lock,
-                    event=event,
-                    T_Queue=trans_queue
-                )
-                processes.append(p)
-                p.start()
-                logger.info(f"Process:{i} 已启动")
-        elif mode == 's-des':
-            task_list = divide_task(threads_num)
-            processes = []
-            for i in range(threads_num):
-                p = Multi_bruteForce(
-                    id=i,
-                    start_point=task_list[i][0],
-                    end_point=task_list[i][1],
-                    P=plaintext,
-                    C=ciphertext,
-                    Queue=queue,
-                    finshQueue=finish_queue,
-                    Progress=progress_queue,
-                    lock=lock,
-                    event=event,
-                    T_Queue=trans_queue
-                )
-                processes.append(p)
-                p.start()
-                logger.info(f"Process:{i} 已启动")
-        else:
-            logger.error("未知的加密模式")
-            return
-
-        # 等待所有进程完成
-        for p in processes:
-            p.join()
-
-    # 启动暴力破解任务在一个独立的线程中，避免阻塞 Flask 主线程
-    brute_force_thread = Thread(target=run_brute_force)
-    brute_force_thread.start()
-    brute_force_thread.join()  # 等待暴力破解完成
-
-    # 收集结果
-    results = []
-    while not queue.empty():
-        results.append(queue.get())
-
-    if results:
-        # 假设可能找到多个密钥
-        keys = [result[1] for result in results]
-        logger.info(f"暴力破解成功，找到密钥: {keys}")
-        return jsonify({"result": keys})
-    else:
-        logger.info("暴力破解失败，未找到匹配的密钥")
-        return jsonify({"result": "破解失败，未找到匹配的密钥"})
 
 # 处理进度更新
 if __name__ == '__main__':
