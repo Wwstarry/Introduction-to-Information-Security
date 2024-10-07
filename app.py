@@ -84,6 +84,14 @@ def measure_performance(algorithm, data_size, resource_config):
     }
 
 
+# 模拟生成密钥、明文、密文数据
+def generate_random_binary_data(length):
+    return ''.join([str(random.randint(0, 1)) for _ in range(length)])
+
+# 计算皮尔逊相关性
+def calculate_correlation(x, y):
+    return np.corrcoef(x, y)[0, 1]
+
 
 def format_matrix(binary_list, width=4):
     """将二进制列表格式化为指定宽度的矩阵形式，转换为十六进制格式并对齐"""
