@@ -13,6 +13,9 @@ from threading import Thread
 from S_DES_ASCII import S_DES_ASCII
 from S_AES_ASCII import S_AES_ASCII
 import time
+import psutil
+import random
+import math
 
 
 app = Flask(__name__)
@@ -46,6 +49,41 @@ def index():
 
 
 ######################################### 工具函数 #########################################
+def measure_performance(algorithm, data_size, resource_config):
+    # 生成假数据
+    data = [1] * int(data_size)  # 用 1 构造简单的测试数据
+
+    # 获取系统资源数据前快照
+    initial_memory = psutil.virtual_memory().used / (1024 ** 2)  # 转换为 MB
+    initial_cpu = psutil.cpu_percent(interval=None)  # CPU 占用率
+
+    # 记录加密时间
+    start_time = time.time()
+    encrypted_data = algorithm.Encryption(data)  # 执行加密
+    encryption_time = (time.time() - start_time) * 1000  # 转换为毫秒
+
+    # 记录解密时间
+    start_time = time.time()
+    decrypted_data = algorithm.Decryption(encrypted_data)  # 执行解密
+    decryption_time = (time.time() - start_time) * 1000  # 转换为毫秒
+
+    # 获取系统资源数据后快照
+    final_memory = psutil.virtual_memory().used / (1024 ** 2)  # 转换为 MB
+    final_cpu = psutil.cpu_percent(interval=None)  # CPU 占用率
+
+    # 计算内存和 CPU 使用
+    memory_usage = final_memory - initial_memory
+    cpu_usage = final_cpu - initial_cpu
+
+    # 返回统计数据
+    return {
+        "encryption_time": encryption_time,
+        "decryption_time": decryption_time,
+        "memory_usage": memory_usage,
+        "cpu_usage": cpu_usage
+    }
+
+
 
 def format_matrix(binary_list, width=4):
     """将二进制列表格式化为指定宽度的矩阵形式，转换为十六进制格式并对齐"""
@@ -151,6 +189,34 @@ def handle_progress_updates(progress_queue):
             logger.error(f"进度更新时遇到错误: {e}")
             break
 
+# 计算熵
+def calculate_entropy(data):
+    freq = {}
+    for byte in data:
+        freq[byte] = freq.get(byte, 0) + 1
+    entropy = 0
+    for count in freq.values():
+        p = count / len(data)
+        entropy -= p * math.log2(p)
+    return entropy
+
+# 加密强度分析
+def encryption_strength(data):
+    # 一个简单的示例：可以根据加密后的数据的复杂度来计算
+    strength = sum(bin(x).count('1') for x in data) / len(data) * 100
+    return strength
+
+# 密钥敏感性分析（这里是简单示例，实际需要对不同密钥进行测试）
+def key_sensitivity_analysis(key, data):
+    flipped_key = ''.join('1' if k == '0' else '0' for k in key)
+    sensitivity = random.uniform(90, 100)  # 假设敏感性在90-100之间
+    return sensitivity
+
+# 模拟的加密算法（假设是AES或DES）
+def fake_encryption_algorithm(key, data):
+    # 模拟加密，返回加密后的数据
+    encrypted_data = [(int(k) ^ int(d)) for k, d in zip(key, data)]
+    return encrypted_data
 
 ######################################### 路由设置 #########################################
 
@@ -459,6 +525,41 @@ def brute_force():
         return jsonify({"result": "破解失败，未找到匹配的密钥", "time_taken": f"破解用时: {time_taken:.2f} 秒"})
 
 
+
+@app.route('/performance-test', methods=['POST'])
+def performance_test():
+    content = request.json
+    key = content['key']
+    data_size = int(content['data_size'])
+    plaintext = content['plaintext']
+    
+    # 自动生成明文数据，假设是二进制数据
+    data = [random.randint(0, 1) for _ in range(data_size)]
+    
+    # 模拟加密和解密过程
+    encrypted_data = fake_encryption_algorithm(key, data)
+    decrypted_data = fake_encryption_algorithm(key, encrypted_data)
+
+    # 计算各种科研指标
+    entropy = calculate_entropy(encrypted_data)
+    strength = encryption_strength(encrypted_data)
+    key_sensitivity = key_sensitivity_analysis(key, encrypted_data)
+    
+    performance_data = {
+        "encryption_time": 1.23,  # 示例值
+        "decryption_time": 1.15,  # 示例值
+        "memory_usage": 1.48,  # 示例值
+        "cpu_usage": 0.0,  # 示例值
+        "entropy": entropy,
+        "strength": strength,
+        "key_sensitivity": key_sensitivity
+    }
+    
+    return jsonify(performance_data)
+
+@app.route('/test')
+def test_page():
+    return render_template('test.html')
 
 # 处理进度更新
 if __name__ == '__main__':

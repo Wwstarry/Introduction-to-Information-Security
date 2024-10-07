@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>算法性能测试与统计分析</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #f0f8ff;
+            font-family: 'Arial', sans-serif;
+            color: #555555;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin-top: 50px;
+            background-color: #e6f7ff; /* 浅蓝色背景 */
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.1);
+            border: 2px solid black;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-align: center;
+            color: #000;
+            padding-bottom: 20px;
+            border-bottom: 3px solid black;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #333; /* 深色标签 */
+        }
+
+        .form-select, .form-range, .input-number, .btn-primary {
+            background-color: beige; /* 背景色 */
+            border-radius: 5px;
+            border: 2px solid black; /* 黑色边框 */
+            box-shadow: 4px 4px black; /* 黑色阴影 */
+            font-size: 1rem;
+            font-weight: 600;
+            color: black;
+            padding: 10px;
+            transition: box-shadow 0.2s, transform 0.2s;
+            width: 100%;
+        }
+
+        .form-select:focus, .input-number:focus, .btn-primary:focus {
+            border-color: #2d8cf0;
+            outline: none;
+        }
+
+        .form-range {
+            appearance: none;
+            height: 10px;
+            border-radius: 5px;
+            background: #ccc;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 0 0 black;
+            transform: translate(2px, 2px);
+        }
+
+        .btn-primary:active {
+            box-shadow: none;
+            transform: translate(4px, 4px);
+        }
+
+        table.table {
+            margin-top: 30px;
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table.table th, table.table td {
+            border: 2px solid black;
+            padding: 10px;
+            text-align: center;
+        }
+
+        #stats-display {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        canvas {
+            margin-top: 30px;
+            background-color: #fff;
+            border: 2px solid black;
+            box-shadow: 4px 4px black;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1 class="text-center">算法性能测试与统计分析</h1>
+
+    <!-- 场景选择模块 -->
+    <div class="form-group">
+        <label for="mode-select">加密模式:</label>
+        <select id="mode-select" class="form-control">
+            <option value="s-aes">S-AES</option>
+            <option value="s-des">S-DES</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="resource-select">资源配置:</label>
+        <select id="resource-select" class="form-control">
+            <option value="low">低资源</option>
+            <option value="medium">中等资源</option>
+            <option value="high">高资源</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="data-size">数据规模:</label>
+        <input type="range" id="data-size" min="100" max="10000" step="100" class="form-range">
+        <span id="data-size-display">数据规模: 100</span>
+    </div>
+
+    <!-- 提交按钮 -->
+    <button class="btn btn-primary" onclick="runPerformanceTest()">开始测试</button>
+
+    <!-- 统计分析结果展示 -->
+    <div id="stats-display">
+        <h3>算法统计分析</h3>
+        <table class="table">
+            <thead>
+            <tr>
+                <th>场景</th>
+                <th>加密时间(ms)</th>
+                <th>解密时间(ms)</th>
+                <th>内存使用量(MB)</th>
+                <th>CPU占用率(%)</th>
+                <th>熵</th>
+                <th>加密强度</th>
+                <th>密钥敏感性分析</th>
+            </tr>
+            </thead>
+            <tbody id="stats-results">
+            <!-- 动态插入统计结果 -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 性能图表展示 -->
+    <canvas id="performance-chart"></canvas>
+
+</div>
+
+<script>
+    document.getElementById('data-size').addEventListener('input', function() {
+        document.getElementById('data-size-display').innerText = "数据规模: " + this.value;
+    });
+
+ // 性能测试函数
+function runPerformanceTest() {
+    const mode = document.getElementById('mode-select').value;
+    const resourceConfig = document.getElementById('resource-select').value;
+    const dataSize = document.getElementById('data-size').value;
+
+    // 生成随机二进制密钥
+    const key = generateRandomBinaryKey();
+
+    // 自动生成随机明文（根据数据规模）
+    const plaintext = generateRandomBinaryData(dataSize);
+
+    // 发送请求到后端，运行性能测试
+    fetch('/performance-test', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            mode: mode,
+            resource_config: resourceConfig,
+            data_size: dataSize,
+            key: key,
+            plaintext: plaintext
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        displayStats(data, mode, resourceConfig, dataSize);
+        updateChart(data);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+// 生成随机的二进制密钥
+function generateRandomBinaryKey() {
+    const keyLength = 10; // 根据你的算法决定密钥长度
+    let key = '';
+    for (let i = 0; i < keyLength; i++) {
+        key += Math.floor(Math.random() * 2); // 随机生成0或1
+    }
+    return key;
+}
+
+// 根据数据规模生成随机明文
+function generateRandomBinaryData(dataSize) {
+    let data = '';
+    for (let i = 0; i < dataSize; i++) {
+        data += Math.floor(Math.random() * 2); // 随机生成0或1
+    }
+    return data;
+}
+
+    // 显示统计结果
+    function displayStats(data, mode, resourceConfig, dataSize) {
+        const statsResults = document.getElementById('stats-results');
+        statsResults.innerHTML = `
+            <tr>
+                <td>${resourceConfig} - ${dataSize}数据</td>
+                <td>${data.encryption_time.toFixed(2)} ms</td>
+                <td>${data.decryption_time.toFixed(2)} ms</td>
+                <td>${data.memory_usage.toFixed(2)} MB</td>
+                <td>${data.cpu_usage.toFixed(2)} %</td>
+                <td>${data.entropy.toFixed(2)}</td>
+                <td>${data.strength.toFixed(2)}</td>
+                <td>${data.key_sensitivity.toFixed(2)}%</td>
+            </tr>
+        `;
+    }
+
+    // 更新图表
+    function updateChart(data) {
+        const ctx = document.getElementById('performance-chart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['加密时间', '解密时间', '内存使用', 'CPU占用率', '熵', '加密强度', '密钥敏感性'],
+                datasets: [{
+                    label: '性能指标',
+                    data: [data.encryption_time, data.decryption_time, data.memory_usage, data.cpu_usage, data.entropy, data.strength, data.key_sensitivity],
+                    backgroundColor: [
+                        'rgba(75, 192, 192, 0.2)',
+                        'rgba(153, 102, 255, 0.2)',
+                        'rgba(255, 159, 64, 0.2)',
+                        'rgba(255, 99, 132, 0.2)',
+                        'rgba(54, 162, 235, 0.2)',
+                        'rgba(255, 206, 86, 0.2)',
+                        'rgba(75, 192, 192, 0.2)'
+                    ],
+                    borderColor: [
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
