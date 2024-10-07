@@ -1,4 +1,4 @@
-class S_DES():
+class S_DES_ASCII():
     P10 = [3, 5, 2, 7, 4, 10, 1, 9, 8, 6]
     P8 = [6, 3, 7, 4, 8, 5, 10, 9]
     IP = [2, 6, 3, 1, 4, 8, 5, 7]
@@ -97,56 +97,46 @@ class S_DES():
         Column = self.BinaryList2Decimal(ColumnBinary)
         return self.Decimal2BinaryList(SubstitutionBox[Row][Column])
 
-    def ascii_to_binary(self, text: str) -> list:
-        """将ASCII字符串转换为二进制列表"""
-        binary_list = []
-        for char in text:
-            # 将每个字符的ASCII码转换为8位二进制
-            binary_char = format(ord(char), '08b')
-            binary_list.extend([int(bit) for bit in binary_char])
-        return binary_list
-
-    def binary_to_ascii(self, binary_list: list) -> str:
-        """将二进制列表转换回ASCII字符串"""
-        chars = []
-        for i in range(0, len(binary_list), 8):
-            byte = binary_list[i:i+8]
-            char_code = int(''.join(map(str, byte)), 2)
-            chars.append(chr(char_code))
-        return ''.join(chars)
-
     def binary_to_garbage(self, binary_list: list) -> str:
         """将二进制列表转换为乱码字符"""
         garbage_chars = []
         for i in range(0, len(binary_list), 8):
             byte = binary_list[i:i + 8]
             byte_value = int(''.join(map(str, byte)), 2)
-            # 使用 chr(byte_value) 将二进制映射为完整字符集，包括不可见字符
-            garbage_chars.append(chr(byte_value))  
+            garbage_chars.append(chr(byte_value))
         return ''.join(garbage_chars)
 
     def garbage_to_binary(self, garbage_str: str) -> list:
         """将乱码字符转换为二进制列表"""
         binary_list = []
         for char in garbage_str:
-            # 将每个乱码字符转换为8位二进制
             binary_char = format(ord(char), '08b')
             binary_list.extend([int(bit) for bit in binary_char])
         return binary_list
     
-    def Encryption_ASCII(self, plaintext: str) -> str:
+    def Encryption_ASCII(self, plaintext: str, key) -> str:
         """将ASCII明文加密并返回乱码"""
-        binary_plaintext = self.ascii_to_binary(plaintext)
-        encrypted_binary = self.Encryption(binary_plaintext)
-        return self.binary_to_garbage(encrypted_binary)
+        binary_plaintext = ''.join(format(ord(c), '08b') for c in plaintext)
+        encrypted_binary = ''
+        for i in range(0, len(binary_plaintext), 8):
+            block = list(map(int, binary_plaintext[i:i + 8]))
+            encrypted_block = self.Encryption(block)
+            encrypted_binary += ''.join(str(b) for b in encrypted_block)
+        return self.binary_to_garbage(list(map(int, encrypted_binary)))
 
-    def Decryption_ASCII(self, ciphertext: str) -> str:
+    def Decryption_ASCII(self, ciphertext: str, key) -> str:
         """将加密的乱码密文解密并恢复为明文"""
         binary_ciphertext = self.garbage_to_binary(ciphertext)
-        # 执行解密
-        decrypted_binary = self.Decryption(binary_ciphertext)
-        # 将解密后的二进制转换回ASCII表示
-        return self.binary_to_ascii(decrypted_binary)
+        decrypted_binary = ''
+        for i in range(0, len(binary_ciphertext), 8):
+            block = binary_ciphertext[i:i + 8]
+            decrypted_block = self.Decryption(block)
+            decrypted_binary += ''.join(str(b) for b in decrypted_block)
+        decrypted_chars = []
+        for i in range(0, len(decrypted_binary), 8):
+            num = int(decrypted_binary[i:i + 8], 2)
+            decrypted_chars.append(chr(num))
+        return ''.join(decrypted_chars)
 
 if __name__ == "__main__":
     machine = S_DES()
@@ -165,10 +155,9 @@ if __name__ == "__main__":
     print(f"原始明文: {plaintext}")
 
     # 加密并生成乱码
-    encrypted_text = machine.Encryption_ASCII(plaintext)
+    encrypted_text = machine.Encryption_ASCII(plaintext, machine.K)
     print(f"加密结果: {encrypted_text}")
 
     # 解密回明文
-    decrypted_text = machine.Decryption_ASCII(encrypted_text)
+    decrypted_text = machine.Decryption_ASCII(encrypted_text, machine.K)
     print(f"解密结果: {decrypted_text}")
-

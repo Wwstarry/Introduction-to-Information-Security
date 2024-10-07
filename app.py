@@ -10,7 +10,7 @@ from Multithreading import Multi_bruteForce
 from MultithreadingOfAES import Multi_bruteForce_16, divide_task_16bit, divide_task
 import base64
 from threading import Thread
-
+from S_DES_ASCII import S_DES_ASCII
 
 
 app = Flask(__name__)
@@ -19,6 +19,8 @@ socketio = SocketIO(app)
 # 初始化 AES 和 DES 算法实例
 aes_cipher = S_AES()
 des_cipher = S_DES()
+# 初始化 S_DES 实例
+des_cipher_ascii = S_DES_ASCII()
 
 # 临时文件存储路径
 UPLOAD_FOLDER = './uploads'
@@ -126,6 +128,53 @@ def encrypt_file():
     # 返回加密结果作为纯文本
     return Response(encrypted, mimetype='text/plain')
 
+
+@app.route('/encrypt_ascii', methods=['POST'])
+def encrypt_ascii():
+    data = request.get_json()
+    mode = data.get('mode')
+    key = data.get('key')
+    plaintext = data.get('plaintext')
+
+    # 如果是ASCII模式
+    if mode == 's-des':
+        des_cipher_ascii.SetKey([int(bit) for bit in key])  # 设置密钥
+        try:
+            ciphertext = des_cipher_ascii.Encryption_ASCII(plaintext, des_cipher_ascii.K)
+            return jsonify({'ciphertext': ciphertext})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 400
+    return jsonify({'error': 'Invalid mode or data'}), 400
+
+@app.route('/decrypt_ascii', methods=['POST'])
+def decrypt_ascii():
+    data = request.get_json()
+    mode = data.get('mode')
+    key = data.get('key')
+    ciphertext = data.get('ciphertext')
+
+    # 如果是ASCII模式
+    if mode == 's-des':
+        des_cipher_ascii.SetKey([int(bit) for bit in key])  # 设置密钥
+        try:
+            plaintext = des_cipher_ascii.Decryption_ASCII(ciphertext, des_cipher_ascii.K)
+            return jsonify({'plaintext': plaintext})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 400
+    return jsonify({'error': 'Invalid mode or data'}), 400
+
+
+
+
+
+
+
+
+
+
+
+
+
 # 解密文件请求
 @app.route('/decrypt-file', methods=['POST'])
 def decrypt_file():
@@ -171,6 +220,7 @@ def decrypt_file():
 
     # 返回解密结果作为纯文本
     return Response(decrypted, mimetype='text/plain')
+
 
 
 @app.route('/compare', methods=['POST'])
