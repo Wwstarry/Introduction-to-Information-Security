@@ -28,32 +28,124 @@ background-position: 0 0, 30px 30px;
 
 } */
 
-h1 {
-    font-size: 3rem; /* 字体大小 */
-    color: #000; /* 黑色文字 */
-    font-weight: 700; /* 加粗 */
-    text-align: center; /* 居中对齐 */
-    padding: 10px 20px; /* 内边距 */
-    background-color: #42c89d; /* 绿色背景色 */
-    border: 3px solid black; /* 黑色边框 */
-    border-radius: 8px; /* 圆角效果 */
-    position: relative;
-    display: inline-block; /* 使得标题变得紧凑 */
-    box-shadow: 3px 3px 0px black; /* 实现类按钮的阴影效果 */
+/* 设置容器，使标题与按钮居中显示 */
+.header-container {
+    display: flex;
+    justify-content: space-between; /* 标题靠左，按钮靠右 */
+    align-items: center;
+    padding: 20px;
+    background-color: transparent; /* 去掉背景色 */
+    margin: 0;
 }
 
-h1::before {
-    content: '';
-    position: absolute;
-    top: 8px; /* 调整距离，给出阴影效果 */
-    left: 8px;
-    width: 100%;
-    height: 100%;
-    background-color: #42c89d; /* 与标题相同的背景色 */
-    border: 3px solid black; /* 黑色边框 */
-    border-radius: 8px; /* 保持圆角一致 */
-    z-index: -1; /* 使得它在标题文本的后面 */
+/* 标题样式 */
+h1 {
+    font-size: 3rem;
+    color: #000;
+    font-weight: 700;
+    padding: 10px 20px;
+    background-color: #42c89d;
+    border: 3px solid black;
+    border-radius: 8px;
+    box-shadow: 3px 3px 0px black;
+    margin: 0;
 }
+
+/* 调整按钮大小 */
+.button {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0.5em 0.5em 0.5em 0.5em; /* 减小内边距 */
+    background-color: white;
+    cursor: pointer;
+    box-shadow: 2px 4px 0px black; /* 缩小阴影 */
+    border: 2px solid; /* 减小边框厚度 */
+    border-radius: 10px; /* 调整圆角大小 */
+    position: relative;
+    overflow: hidden;
+    z-index: 100;
+    transition: box-shadow 250ms, transform 250ms, filter 50ms;
+    text-decoration: none; /* 去掉按钮的链接下划线 */
+}
+
+.button:focus {
+    outline: 2px solid black; /* 将轮廓设置为黑色 */
+}
+
+.button:hover {
+    transform: translate(1px, 1px); /* 缩小悬停时的移动 */
+    box-shadow: 1px 2px 0px black; /* 缩小阴影 */
+}
+.button:active {
+    filter: saturate(0.75);
+}
+.button::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: #42c89d;
+    z-index: -1;
+    transform: translateX(-100%);
+    transition: transform 250ms;
+}
+.button:hover::after {
+    transform: translateX(0);
+}
+.bgContainer {
+    position: relative;
+    display: flex;
+    justify-content: start;
+    align-items: center;
+    overflow: hidden;
+    max-width: 30%; /* 调整宽度 */
+    font-size: 1em; /* 调整字体大小 */
+    font-weight: 600;
+}
+.bgContainer span {
+    position: relative;
+    transform: translateX(-100%);
+    transition: all 250ms;
+}
+.button:hover .bgContainer > span {
+    transform: translateX(0);
+}
+.arrowContainer {
+    padding: 0.5em; /* 调整箭头容器的内边距 */
+    margin-inline-end: 0.6em;
+    border: 2px solid; /* 减小边框厚度 */
+    border-radius: 50%;
+    background-color: #42c89d;
+    position: relative;
+    overflow: hidden;
+    transition: transform 250ms, background-color 250ms;
+    z-index: 100;
+}
+.arrowContainer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-color: white;
+    transform: translateX(-100%);
+    z-index: -1;
+    transition: transform 250ms ease-in-out;
+}
+.button:hover .arrowContainer::after {
+    transform: translateX(0);
+}
+.button:hover .arrowContainer {
+    transform: translateX(3px); /* 缩小悬停时的移动 */
+}
+.button:active .arrowContainer {
+    transform: translateX(5px);
+}
+.arrowContainer svg {
+    vertical-align: middle;
+    width: 14px; /* 缩小箭头图标的大小 */
+    height: 14px; /* 缩小箭头图标的大小 */
+}
+
 
 
         .form-group label {
@@ -343,11 +435,33 @@ h1::before {
 <body>
 
 <div class="container">
-    <h1 class="text-center">加密算法系统</h1>
+    <div class="header-container">
+        <h1 class="text-center">加密算法系统</h1>
+        <a href="https://github.com/Wwstarry/Introduction-to-Information-Security" target="_blank" class="button">
+            <div class="bgContainer">
+                <span>Link</span>
+                <span>Link</span>
+            </div>
+            <div class="arrowContainer">
+                <svg
+                  width="25"
+                  height="25"
+                  viewBox="0 0 45 38"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M43.7678 20.7678C44.7441 19.7915 44.7441 18.2085 43.7678 17.2322L27.8579 1.32233C26.8816 0.34602 25.2986 0.34602 24.3223 1.32233C23.346 2.29864 23.346 3.88155 24.3223 4.85786L38.4645 19L24.3223 33.1421C23.346 34.1184 23.346 35.7014 24.3223 36.6777C25.2986 37.654 26.8816 37.654 27.8579 36.6777L43.7678 20.7678ZM0 21.5L42 21.5V16.5L0 16.5L0 21.5Z"
+                    fill="black"
+                  ></path>
+                </svg>
+            </div>
+        </a>
+    </div>
 
     <!-- 加密模式选择，放在所有功能之上 -->
     <div class="form-group">
-        <h3>选择加密模式:</h3>
+        <h3>选择加密算法:</h3>
         <select class="form-select" id="mode" name="mode">
             <option value="s-des">S-DES</option>
             <option value="s-aes">S-AES</option>
