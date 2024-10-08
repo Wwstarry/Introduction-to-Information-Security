@@ -156,8 +156,8 @@
 
 1. **克隆项目仓库**：
     ```bash
-    git clone https://github.com/username/crypto-performance-bruteforce.git
-    cd crypto-performance-bruteforce
+    git clone https://github.com/Wwstarry/Introduction-to-Information-Security.git
+    cd Introduction-to-Information-Security
     ```
 
 2. **安装依赖包**：
