@@ -1,7 +1,10 @@
 from flask import Flask, request, jsonify, render_template, Response
 import os
+
+import numpy as np
 from S_AES import S_AES
 from S_DES import S_DES
+from Other_cipher import S_ECC,S_SM2,S_MD5,S_SM3,S_SM4
 from werkzeug.utils import secure_filename
 import multiprocessing
 import logging
@@ -29,6 +32,12 @@ aes_cipher = S_AES()
 des_cipher = S_DES()
 des_cipher_ascii = S_DES_ASCII()
 aes_cipher_ascii = S_AES_ASCII()
+sm3_cipher = S_SM3()
+sm4_cipher = S_SM4()
+ecc_cipher = S_ECC()
+sm2_cipher = S_SM2()
+md5_cipher = S_MD5()
+
 
 ######################################### 临时文件存储路径 #########################################
 UPLOAD_FOLDER = './uploads'
@@ -239,35 +248,71 @@ def encrypt():
     # 检查输入数据是否正确
     print(f"Received data: mode={mode}, key={key}, plaintext={plaintext}")
 
-
     # 加密步骤
     if mode == 's-aes':
         aes_cipher.SetKey([int(x) for x in key])
         result = aes_cipher.Encryption([int(x) for x in plaintext], with_steps=True)
+        
+        # 对每个步骤的结果进行格式化处理（4×4 矩阵形式）
+        formatted_substitution = [format_matrix(sub) for sub in result.get('substitution', [])]
+        formatted_shiftRows = [format_matrix(shift) for shift in result.get('shiftRows', [])]
+        formatted_mixColumns = [format_matrix(mix) for mix in result.get('mixColumns', [])]
+        response = {
+            "ciphertext": ''.join(map(str, result.get('ciphertext', []))),
+            "initial_plaintext": format_matrix(result.get('initial_plaintext', [])),
+            "roundKey": result.get('roundKey', []),
+            "substitution": formatted_substitution,
+            "shiftRows": formatted_shiftRows,
+            "mixColumns": formatted_mixColumns
+        }
+
     elif mode == 's-des':
         des_cipher.SetKey([int(x) for x in key])
         result = des_cipher.Encryption([int(x) for x in plaintext], with_steps=True)
+        
+        # 同样保留步骤
+        formatted_substitution = [format_matrix(sub) for sub in result.get('substitution', [])]
+        formatted_shiftRows = [format_matrix(shift) for shift in result.get('shiftRows', [])]
+        formatted_mixColumns = [format_matrix(mix) for mix in result.get('mixColumns', [])]
+        response = {
+            "ciphertext": ''.join(map(str, result.get('ciphertext', []))),
+            "initial_plaintext": format_matrix(result.get('initial_plaintext', [])),
+            "roundKey": result.get('roundKey', []),
+            "substitution": formatted_substitution,
+            "shiftRows": formatted_shiftRows,
+            "mixColumns": formatted_mixColumns
+        }
+    
+    # 对于不支持这些中间过程的算法，不执行这些处理
+    elif mode == 's-sm4':
+        sm4_cipher.SetKey(bytes.fromhex(key))  # 使用SetKey设置密钥
+        result = sm4_cipher.Encryption(bytes.fromhex(plaintext))  # 假设输入是十六进制字符串
+        response = {"ciphertext": result.hex()}
+    
+    elif mode == 's-sm3':
+        result = sm3_cipher.Encryption(plaintext.encode('utf-8'))
+        response = {"ciphertext": result}
+    
+    elif mode == 's-ecc':
+        result = ecc_cipher.sign(plaintext.encode('utf-8'))  # ECC 进行签名
+        response = {"ciphertext": result.hex()}
+    
+    elif mode == 's-sm2':
+        result = sm2_cipher.sign(plaintext.encode('utf-8'))  # SM2 进行签名
+        response = {"ciphertext": result.hex()}
+    
+    elif mode == 's-md5':
+        result = md5_cipher.Encryption(plaintext.encode('utf-8'))
+        response = {"ciphertext": result.hex()}
+    
     else:
         return jsonify({"error": "未知的加密模式"}), 400
-
-    # 对每个步骤的结果进行格式化处理（4×4 矩阵形式）
-    formatted_substitution = [format_matrix(sub) for sub in result.get('substitution', [])]
-    formatted_shiftRows = [format_matrix(shift) for shift in result.get('shiftRows', [])]
-    formatted_mixColumns = [format_matrix(mix) for mix in result.get('mixColumns', [])]
-
-    response = {
-        "ciphertext": ''.join(map(str, result.get('ciphertext', []))),
-        "initial_plaintext": format_matrix(result.get('initial_plaintext', [])),
-        "roundKey": result.get('roundKey', []),
-        "substitution": formatted_substitution,
-        "shiftRows": formatted_shiftRows,
-        "mixColumns": formatted_mixColumns
-    }
 
     # 打印返回的数据，检查是否包含所有需要的字段
     print(f"Response data: {response}")
 
     return jsonify(response)
+
 
 
 # 解密请求
@@ -281,17 +326,23 @@ def decrypt():
     if not key or not all(c in '01' for c in key):
         return jsonify({"error": "密钥无效，密钥必须为二进制字符串"}), 400
 
+    # 根据不同的模式执行解密
     if mode == 's-aes':
         aes_cipher.SetKey([int(x) for x in key])
         decrypted = aes_cipher.Decryption([int(x) for x in ciphertext])
     elif mode == 's-des':
         des_cipher.SetKey([int(x) for x in key])
         decrypted = des_cipher.Decryption([int(x) for x in ciphertext])
+    elif mode == 's-sm4':
+        sm4_cipher = S_SM4(bytes.fromhex(key))  # SM4 使用 16 字节密钥
+        decrypted = sm4_cipher.Decryption(bytes.fromhex(ciphertext))
     else:
-        return jsonify({"error": "未知的解密模式"}), 400
+        return jsonify({"error": "未知的解密模式或算法不支持解密"}), 400
 
-    decrypted_str = ''.join(map(str, decrypted))
-    return jsonify({"plaintext": decrypted_str})
+    # 返回解密结果
+    return jsonify({
+        "plaintext": decrypted.hex() if isinstance(decrypted, bytes) else ''.join(map(str, decrypted))
+    })
 
 
 
