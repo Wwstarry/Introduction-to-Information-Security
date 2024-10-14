@@ -1,5 +1,7 @@
+import binascii
 from flask import Flask, request, jsonify, render_template, Response
 import os
+import base64
 
 import numpy as np
 from S_AES import S_AES
@@ -234,6 +236,10 @@ def fake_encryption_algorithm(key, data):
     # 模拟加密，返回加密后的数据
     encrypted_data = [(int(k) ^ int(d)) for k, d in zip(key, data)]
     return encrypted_data
+
+def add_padding(base64_string):
+    # Add necessary padding if the length of the Base64 string is not a multiple of 4
+    return base64_string + '=' * (-len(base64_string) % 4)
 
 ######################################### 路由设置 #########################################
 
@@ -619,6 +625,79 @@ def performance_test():
 @app.route('/test')
 def test_page():
     return render_template('test.html')
+
+
+# ECC/SM2 Signing API
+@app.route('/sign', methods=['POST'])
+def sign():
+    data = request.json
+    message = data.get('message')
+    
+    # Ensure message exists
+    if not message:
+        return jsonify({"error": "No message provided"}), 400
+
+    # Convert the message string to bytes
+    message_bytes = message.encode('utf-8')  # Assuming message is UTF-8 encoded
+    mode = data.get('mode')
+    print(mode)
+
+    if mode == 's-ecc':
+        signature = ecc_cipher.sign(message_bytes)
+    elif mode == 's-sm2':
+        signature = sm2_cipher.sign(message_bytes)
+    else:
+        return jsonify({"error": "Invalid algorithm"}), 400
+
+    # Return signature in hex format for ease of representation
+    return jsonify({"signature": signature.hex()})
+
+
+
+@app.route('/verify', methods=['POST'])
+def verify():
+    data = request.json
+    mode = data.get('mode')
+    message = data.get('message').encode('utf-8')
+
+    # 打印消息内容
+    print(f"消息: {message}")
+
+    # Correct padding for the signature
+    signature_base64 = data.get('signature')
+
+    # 打印签名 (Base64 编码)
+    print(f"签名 (Base64 编码): {signature_base64}")
+
+    try:
+        # Base64 解码签名
+        signature = base64.b64decode(signature_base64)  # add_padding 函数可以是你定义的一个函数
+        print(f"签名（解码后）: {signature}")  # 打印解码后的签名
+
+    except Exception as e:
+        print(f"签名解码错误: {e}")
+        return jsonify({"error": "签名解码错误: " + str(e)}), 400
+
+    if mode == 's-ecc':
+        is_valid = ecc_cipher.verify(signature, message)
+        print(f"签名验证结果: {is_valid}")
+        return jsonify({"valid": is_valid})
+
+    elif mode == 's-sm2':
+        is_valid = sm2_cipher.verify(signature, message)
+        print(f"签名验证结果: {is_valid}")
+        return jsonify({"valid": is_valid})
+
+    return jsonify({"error": "未知的验证模式"}), 400
+
+
+
+
+
+
+
+
+
 
 # 处理进度更新
 if __name__ == '__main__':

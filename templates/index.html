@@ -503,6 +503,11 @@ h1 {
         <li class="nav-item">
             <a class="nav-link" href="#" onclick="switchSection('brute-force')">暴力破解</a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" onclick="switchSection('signature-verification')">签名/验证</a>
+        </li>
+        
+
     </ul>
 
     <!-- bit模式 -->
@@ -673,6 +678,37 @@ h1 {
         </div>
         <textarea class="form-control mt-3" id="brute-force-output" rows="6" readonly></textarea>
     </div>
+
+
+    <div id="signature-verification" class="section">
+        <h3>签名/验证</h3>
+        <form id="signature-form">
+            <!-- 签名部分 -->
+            <div class="form-group">
+                <label for="message-sign">消息:</label>
+                <textarea class="input" id="message-sign" rows="2" placeholder="请输入要签名的消息"></textarea>
+            </div>
+            <div class="form-group">
+                <button type="button" class="btn btn-custom" onclick="signMessage()">签名</button>
+            </div>
+            <textarea class="form-control mt-3" id="signature-output" rows="4" readonly placeholder="签名结果"></textarea>
+    
+            <!-- 验证部分 -->
+            <div class="form-group mt-4">
+                <label for="message-verify">消息（验证）:</label>
+                <textarea class="input" id="message-verify" rows="2" placeholder="请输入要验证的消息"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="signature-verify">签名:</label>
+                <textarea class="input" id="signature-verify" rows="2" placeholder="请输入要验证的签名"></textarea>
+            </div>
+            <div class="form-group">
+                <button type="button" class="btn btn-custom" onclick="verifyMessage()">验证签名</button>
+            </div>
+            <textarea class="form-control mt-3" id="verification-output" rows="4" readonly placeholder="验证结果"></textarea>
+        </form>
+    </div>
+    
     <footer>
         <p>&copy; 2024 信息安全导论.20221982潘铷葳20221385江佳艺</p>
     </footer>
@@ -993,6 +1029,62 @@ function startDecryption() {
             alert('解密过程中发生错误');
         });
     }
+
+    function signMessage() {
+    let message = document.getElementById("message-sign").value;
+    let mode = document.getElementById("mode").value; // 获取当前选择的模式
+
+    fetch('/sign', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ mode, message })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.signature) {
+            document.getElementById('signature-output').value = data.signature;
+        } else if (data.error) {
+            alert(data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('签名过程中发生错误');
+    });
+}
+
+function verifyMessage() {
+    let message = document.getElementById("message-verify").value;
+    let signature = document.getElementById("signature-verify").value;
+    let mode = document.getElementById("mode").value; // 获取当前选择的模式
+
+    // 清除之前的验证结果
+    document.getElementById('verification-output').value = "";
+
+    fetch('/verify', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ mode, message, signature })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.valid !== undefined) {
+            document.getElementById('verification-output').value = data.valid ? "签名有效" : "签名无效";
+        } else if (data.error) {
+            // 显示具体的错误信息
+            document.getElementById('verification-output').value = "验证错误: " + data.error;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('验证过程中发生错误: ' + error.message);
+    });
+}
+
 
         
 </script>
