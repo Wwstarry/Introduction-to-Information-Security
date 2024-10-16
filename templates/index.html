@@ -202,7 +202,7 @@ h1 {
 
         /* 更新容器的样式 */
         .container {
-            max-width: 900px;
+            
             margin-top: 50px;
             background-color: lightblue;
             padding: 20px;
@@ -440,6 +440,18 @@ h1 {
         }
 
 
+        .result-box {
+    background-color: #f8f9fa; /* 背景颜色 */
+    border: 1px solid #dee2e6; /* 边框 */
+    padding: 10px; /* 内边距 */
+    font-family: 'Courier New', monospace; /* 使用等宽字体 */
+    color: #333; /* 字体颜色 */
+    word-wrap: break-word; /* 自动换行 */
+    white-space: pre-wrap; /* 保留空格和换行 */
+    border-radius: 5px; /* 圆角 */
+    margin-top: 10px; /* 距离顶部的外边距 */
+}
+
 
         
     </style>
@@ -474,7 +486,7 @@ h1 {
     <!-- 加密模式选择，放在所有功能之上 -->
     <div class="form-group">
         <h3>选择加密算法:</h3>
-        <select class="form-select" id="mode" name="mode">
+        <select class="form-select" id="mode" name="mode" onchange="adjustInputFields()">
             <option value="s-des">S-DES</option>
             <option value="s-aes">S-AES</option>
             <option value="s-sm4">SM4</option>
@@ -486,29 +498,37 @@ h1 {
     </div>
     
 
-    <!-- 导航栏 -->
-    <ul class="nav nav-tabs">
-        <li class="nav-item">
-            <a class="nav-link active" href="#" onclick="switchSection('bit-mode')">bit模式</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="#" onclick="switchSection('ascii-mode')">ASCII模式</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="#" onclick="switchSection('file-encryption')">文件加解密</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="#" onclick="switchSection('plaintext-ciphertext')">明密文对照</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="#" onclick="switchSection('brute-force')">暴力破解</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="#" onclick="switchSection('signature-verification')">签名/验证</a>
-        </li>
-        
+<!-- 导航栏 -->
+<ul class="nav nav-tabs">
+    <li class="nav-item">
+        <a class="nav-link active" href="#" onclick="switchSection('bit-mode')">bit模式</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="switchSection('ascii-mode')">ASCII模式</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="switchSection('file-encryption')">文件加解密</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="switchSection('plaintext-ciphertext')">明密文对照</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="switchSection('brute-force')">暴力破解</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="switchSection('signature-verification')">签名/验证</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="switchSection('double-encryption')">双重加密/解密</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="switchSection('cbc-encryption')">CBC 模式加解密</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="switchSection('meet-in-the-middle')">中间相遇攻击</a>
+    </li>
+</ul>
 
-    </ul>
 
     <!-- bit模式 -->
     <div id="bit-mode" class="section active">
@@ -520,6 +540,18 @@ h1 {
     <div class="input-container">
         <input type="text" class="input" id="key" placeholder="请输入密钥">
     </div>
+</div>
+
+<!-- 公钥输入框，仅适用于ECC和SM2 -->
+<div class="form-group" id="public-key-field" style="display:none;">
+    <label for="public-key">公钥:</label>
+    <input type="text" class="form-control" id="public-key" placeholder="请输入公钥">
+</div>
+
+<!-- 私钥输入框，仅适用于ECC和SM2 -->
+<div class="form-group" id="private-key-field" style="display:none;">
+    <label for="private-key">私钥:</label>
+    <input type="text" class="form-control" id="private-key" placeholder="请输入私钥">
 </div>
 
 <!-- 明文输入框 -->
@@ -572,6 +604,8 @@ h1 {
                     <input type="text" class="input" id="key-ascii" placeholder="请输入密钥">
                 </div>
             </div>
+
+            
 
             <!-- 明文输入框 -->
             <div class="form-group">
@@ -708,6 +742,130 @@ h1 {
             <textarea class="form-control mt-3" id="verification-output" rows="4" readonly placeholder="验证结果"></textarea>
         </form>
     </div>
+
+<!-- 双重加密/解密 -->
+<div id="double-encryption" class="section">
+    <h3>双重加密/解密</h3>
+    <form id="double-encryption-form">
+        <div class="form-group">
+            <label for="double-action" class="form-label">选择操作</label>
+            <select class="form-select" id="double-action" name="action" required>
+                <option value="encrypt">加密</option>
+                <option value="decrypt">解密</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="double-mode" class="form-label">加密模式</label>
+            <select class="form-select" id="double-mode" name="mode" required>
+                <option value="double-s-aes">双重 S-AES</option>
+                <option value="double-s-des">双重 S-DES</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="double-key1">密钥1</label>
+            <div class="input-container">
+                <input type="text" class="input" id="double-key1" name="key1" placeholder="请输入密钥1" required>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="double-key2">密钥2</label>
+            <div class="input-container">
+                <input type="text" class="input" id="double-key2" name="key2" placeholder="请输入密钥2" required>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="double-data-input">明文/密文</label>
+            <div class="input-container">
+                <input type="text" class="input" id="double-data-input" name="data" placeholder="请输入明文/密文" required>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-custom">提交</button>
+    </form>
+    <div class="mt-3">
+        <h5>结果:</h5>
+        <textarea class="form-control mt-3" id="double-result" rows="6" readonly></textarea> <!-- 使用了 textarea -->
+    </div>
+</div>
+
+
+<!-- CBC 模式加解密 -->
+<div id="cbc-encryption" class="section">
+    <h3>CBC 模式加密/解密</h3>
+    <form id="cbc-encryption-form">
+        <div class="form-group">
+            <label for="cbc-action" class="form-label">选择操作</label>
+            <select class="form-select" id="cbc-action" name="action" required>
+                <option value="encrypt">加密</option>
+                <option value="decrypt">解密</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="cbc-mode" class="form-label">加密模式</label>
+            <select class="form-select" id="cbc-mode" name="mode" required>
+                <option value="cbc-s-aes">CBC S-AES</option>
+                <option value="cbc-s-des">CBC S-DES</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="cbc-key">密钥</label>
+            <div class="input-container">
+                <input type="text" class="input" id="cbc-key" name="key" placeholder="请输入密钥" required>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="cbc-data-input">明文/密文</label>
+            <div class="input-container">
+                <input type="text" class="input" id="cbc-data-input" name="data" placeholder="请输入明文/密文" required>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="cbc-iv">初始向量</label>
+            <div class="input-container">
+                <input type="text" class="input" id="cbc-iv" name="iv" placeholder="请输入初始向量" required>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-custom">提交</button>
+    </form>
+    <div class="mt-3">
+        <h5>结果:</h5>
+        <textarea class="form-control mt-3" id="cbc-result" rows="6" readonly></textarea> <!-- 使用了 textarea -->
+    </div>
+</div>
+
+
+
+<!-- 中间相遇攻击 -->
+<div id="meet-in-the-middle" class="section">
+    <h3>中间相遇攻击</h3>
+    <form id="meet-in-the-middle-form">
+        <div class="form-group">
+            <label for="meet-mode">加密模式</label>
+            <select class="form-select" id="meet-mode" name="mode" required>
+                <option value="meet-s-aes">S-AES</option>
+                <option value="meet-s-des">S-DES</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="meet-plaintext">明文</label>
+            <div class="input-container">
+                <input type="text" class="input" id="meet-plaintext" name="plaintext" placeholder="请输入明文" required>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="meet-ciphertext">密文</label>
+            <div class="input-container">
+                <input type="text" class="input" id="meet-ciphertext" name="ciphertext" placeholder="请输入密文" required>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-custom">提交</button>
+    </form>
+    <div class="mt-3">
+        <h5>攻击结果:</h5>
+        <textarea class="form-control mt-3" id="meet-result" rows="6" readonly></textarea> <!-- 使用了 textarea -->
+    </div>
+</div>
+
+
     
     <footer>
         <p>&copy; 2024 信息安全导论.20221982潘铷葳20221385江佳艺</p>
@@ -717,7 +875,7 @@ h1 {
 </div>
 
 
-
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
 
 
@@ -1083,6 +1241,130 @@ function verifyMessage() {
         console.error('Error:', error);
         alert('验证过程中发生错误: ' + error.message);
     });
+}
+
+        // 双重加密/解密
+        $('#double-encryption-form').submit(function(event){
+            event.preventDefault();
+            const action = $('#double-action').val();
+            const mode = $('#double-mode').val();
+            const key1 = $('#double-key1').val();
+            const key2 = $('#double-key2').val();
+            const dataInput = $('#double-data-input').val();
+
+            $.ajax({
+                url: '/double-encryption',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    action: action,
+                    mode: mode,
+                    key1: key1,
+                    key2: key2,
+                    data: dataInput
+                }),
+                success: function(response){
+                    $('#double-result').text(response.result);
+                },
+                error: function(xhr){
+                    alert(xhr.responseJSON.error);
+                }
+            });
+        });
+
+// CBC 加密/解密
+$('#cbc-encryption-form').submit(function(event){
+    event.preventDefault();
+    
+    const action = $('#cbc-action').val();
+    const mode = $('#cbc-mode').val();
+    const key = $('#cbc-key').val();
+    const iv = $('#cbc-iv').val();
+    const dataInput = $('#cbc-data-input').val();
+
+    // 检查 key、iv 和 dataInput 是否为二进制字符串
+    const isBinary = (str) => /^[01]+$/.test(str);  // 用正则表达式检查是否只包含 0 和 1
+
+    if (!isBinary(key) || !isBinary(iv) || !isBinary(dataInput)) {
+        alert("密钥、初始向量和数据输入必须是二进制字符串（只包含 0 和 1）");
+        return;
+    }
+
+    // 如果 key、iv 或者 dataInput 为空，也给出警告
+    if (!key || !iv || !dataInput) {
+        alert("密钥、初始向量和数据输入不能为空");
+        return;
+    }
+
+    // 发送 AJAX 请求
+    $.ajax({
+        url: '/cbc-encryption',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            action: action,
+            mode: mode,
+            key: key,
+            iv: iv,
+            data: dataInput
+        }),
+        success: function(response){
+            $('#cbc-result').text(response.result);  // 成功时显示结果
+        },
+        error: function(xhr){
+            alert(xhr.responseJSON.error);  // 错误时显示消息
+        }
+    });
+});
+
+
+// 中间相遇攻击
+$('#meet-in-the-middle-form').submit(function(event){
+    event.preventDefault();
+    const mode = $('#meet-mode').val();
+    const plaintext = $('#meet-plaintext').val();
+    const ciphertext = $('#meet-ciphertext').val();
+
+    $.ajax({
+        url: '/meet-in-the-middle',  // 后端处理中间相遇攻击的路由
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            mode: mode,
+            plaintext: plaintext,
+            ciphertext: ciphertext
+        }),
+        success: function(response){
+            // 确保结果正确显示在页面上
+            $('#meet-result').text(response.result);
+        },
+        error: function(xhr){
+            alert(xhr.responseJSON.error);
+        }
+    });
+});
+
+function adjustInputFields() {
+    const mode = document.getElementById("mode").value;
+
+    const keyField = document.getElementById("key-field");
+    const publicKeyField = document.getElementById("public-key-field");
+    const privateKeyField = document.getElementById("private-key-field");
+    const plaintextField = document.getElementById("plaintext-field");
+    const ciphertextField = document.getElementById("ciphertext-field");
+
+    if (mode === 's-sm3' || mode === 's-md5') {
+        keyField.style.display = 'none';
+        ciphertextField.style.display = 'none';  // 无需密文框
+    } else if (mode === 's-ecc' || mode === 's-sm2') {
+        keyField.style.display = 'none';
+        publicKeyField.style.display = 'block';
+        privateKeyField.style.display = 'block';
+    } else {
+        keyField.style.display = 'block';
+        publicKeyField.style.display = 'none';
+        privateKeyField.style.display = 'none';
+    }
 }
 
 

@@ -244,6 +244,7 @@ def add_padding(base64_string):
 ######################################### 路由设置 #########################################
 
 # 加密请求
+# 加密请求
 @app.route('/encrypt', methods=['POST'])
 def encrypt():
     data = request.json
@@ -254,70 +255,59 @@ def encrypt():
     # 检查输入数据是否正确
     print(f"Received data: mode={mode}, key={key}, plaintext={plaintext}")
 
-    # 加密步骤
+    # 根据模式执行加密操作
     if mode == 's-aes':
-        aes_cipher.SetKey([int(x) for x in key])
-        result = aes_cipher.Encryption([int(x) for x in plaintext], with_steps=True)
-        
-        # 对每个步骤的结果进行格式化处理（4×4 矩阵形式）
-        formatted_substitution = [format_matrix(sub) for sub in result.get('substitution', [])]
-        formatted_shiftRows = [format_matrix(shift) for shift in result.get('shiftRows', [])]
-        formatted_mixColumns = [format_matrix(mix) for mix in result.get('mixColumns', [])]
+        aes_cipher.SetKey([int(x) for x in key])  # 使用二进制密钥
+        result = aes_cipher.Encryption([int(x) for x in plaintext], with_steps=True)  # 获取每轮加密步骤
         response = {
             "ciphertext": ''.join(map(str, result.get('ciphertext', []))),
             "initial_plaintext": format_matrix(result.get('initial_plaintext', [])),
             "roundKey": result.get('roundKey', []),
-            "substitution": formatted_substitution,
-            "shiftRows": formatted_shiftRows,
-            "mixColumns": formatted_mixColumns
+            "substitution": [format_matrix(sub) for sub in result.get('substitution', [])],
+            "shiftRows": [format_matrix(shift) for shift in result.get('shiftRows', [])],
+            "mixColumns": [format_matrix(mix) for mix in result.get('mixColumns', [])]
         }
 
     elif mode == 's-des':
-        des_cipher.SetKey([int(x) for x in key])
-        result = des_cipher.Encryption([int(x) for x in plaintext], with_steps=True)
-        
-        # 同样保留步骤
-        formatted_substitution = [format_matrix(sub) for sub in result.get('substitution', [])]
-        formatted_shiftRows = [format_matrix(shift) for shift in result.get('shiftRows', [])]
-        formatted_mixColumns = [format_matrix(mix) for mix in result.get('mixColumns', [])]
+        des_cipher.SetKey([int(x) for x in key])  # 使用二进制密钥
+        result = des_cipher.Encryption([int(x) for x in plaintext], with_steps=True)  # 获取每轮加密步骤
         response = {
             "ciphertext": ''.join(map(str, result.get('ciphertext', []))),
             "initial_plaintext": format_matrix(result.get('initial_plaintext', [])),
             "roundKey": result.get('roundKey', []),
-            "substitution": formatted_substitution,
-            "shiftRows": formatted_shiftRows,
-            "mixColumns": formatted_mixColumns
+            "substitution": [format_matrix(sub) for sub in result.get('substitution', [])],
+            "shiftRows": [format_matrix(shift) for shift in result.get('shiftRows', [])],
+            "mixColumns": [format_matrix(mix) for mix in result.get('mixColumns', [])]
         }
-    
-    # 对于不支持这些中间过程的算法，不执行这些处理
+
     elif mode == 's-sm4':
-        sm4_cipher.SetKey(bytes.fromhex(key))  # 使用SetKey设置密钥
-        result = sm4_cipher.Encryption(bytes.fromhex(plaintext))  # 假设输入是十六进制字符串
+        sm4_cipher.SetKey(bytes.fromhex(key))  # SM4密钥为十六进制格式
+        result = sm4_cipher.Encryption(bytes.fromhex(plaintext))  # 明文也为十六进制格式
         response = {"ciphertext": result.hex()}
-    
+
     elif mode == 's-sm3':
-        result = sm3_cipher.Encryption(plaintext.encode('utf-8'))
-        response = {"ciphertext": result}
-    
-    elif mode == 's-ecc':
-        result = ecc_cipher.sign(plaintext.encode('utf-8'))  # ECC 进行签名
-        response = {"ciphertext": result.hex()}
-    
-    elif mode == 's-sm2':
-        result = sm2_cipher.sign(plaintext.encode('utf-8'))  # SM2 进行签名
-        response = {"ciphertext": result.hex()}
-    
+        result = sm3_cipher.Encryption(plaintext.encode('utf-8'))  # SM3哈希操作
+        response = {"hash": result}  # 输出哈希值
+
     elif mode == 's-md5':
-        result = md5_cipher.Encryption(plaintext.encode('utf-8'))
-        response = {"ciphertext": result.hex()}
-    
+        result = md5_cipher.Encryption(plaintext.encode('utf-8'))  # MD5哈希操作
+        response = {"hash": result.hex()}  # 输出哈希值
+
+    elif mode == 's-ecc':
+        result = ecc_cipher.sign(plaintext.encode('utf-8'))  # 使用ECC算法进行签名
+        response = {"ciphertext": result.hex()}  # 输出签名结果
+
+    elif mode == 's-sm2':
+        result = sm2_cipher.sign(plaintext.encode('utf-8'))  # 使用SM2算法进行签名
+        response = {"ciphertext": result.hex()}  # 输出签名结果
+
     else:
         return jsonify({"error": "未知的加密模式"}), 400
 
-    # 打印返回的数据，检查是否包含所有需要的字段
+    # 打印返回数据，便于调试
     print(f"Response data: {response}")
-
     return jsonify(response)
+
 
 
 
@@ -329,19 +319,23 @@ def decrypt():
     key = data.get('key')
     ciphertext = data.get('ciphertext')
 
-    if not key or not all(c in '01' for c in key):
+    # 检查密钥格式
+    if not key or not all(c in '01' for c in key):  # 确保密钥为二进制格式
         return jsonify({"error": "密钥无效，密钥必须为二进制字符串"}), 400
 
-    # 根据不同的模式执行解密
+    # 根据模式执行解密操作
     if mode == 's-aes':
         aes_cipher.SetKey([int(x) for x in key])
         decrypted = aes_cipher.Decryption([int(x) for x in ciphertext])
+
     elif mode == 's-des':
         des_cipher.SetKey([int(x) for x in key])
         decrypted = des_cipher.Decryption([int(x) for x in ciphertext])
+
     elif mode == 's-sm4':
-        sm4_cipher = S_SM4(bytes.fromhex(key))  # SM4 使用 16 字节密钥
+        sm4_cipher = S_SM4(bytes.fromhex(key))  # SM4密钥为十六进制格式
         decrypted = sm4_cipher.Decryption(bytes.fromhex(ciphertext))
+
     else:
         return jsonify({"error": "未知的解密模式或算法不支持解密"}), 400
 
@@ -693,6 +687,182 @@ def verify():
 
 
 
+# 双重加密/解密路由
+@app.route('/double-encryption', methods=['POST'])
+def double_encryption_decryption():
+    data = request.json
+    action = data.get('action')  # 'encrypt' or 'decrypt'
+    mode = data.get('mode')  # 'double-s-aes' or 'double-s-des'
+    key1 = data.get('key1')
+    key2 = data.get('key2')
+    data_input = data.get('data')  # plaintext or ciphertext
+
+    if not key1 or not key2:
+        return jsonify({"error": "需要提供两个密钥"}), 400
+
+    if mode == 'double-s-aes':
+        cipher = aes_cipher
+        if len(key1) != 16 or len(key2) != 16:
+            return jsonify({"error": "双重S-AES加密需要两个16位密钥"}), 400
+    elif mode == 'double-s-des':
+        cipher = des_cipher
+        if len(key1) != 10 or len(key2) != 10:
+            return jsonify({"error": "双重S-DES加密需要两个10位密钥"}), 400
+    else:
+        return jsonify({"error": "未知的加密模式"}), 400
+
+    if action == 'encrypt':
+        result = double_encryption(cipher, [int(x) for x in data_input], key1, key2)
+        return jsonify({"result": ''.join(map(str, result))})
+    elif action == 'decrypt':
+        result = double_decryption(cipher, [int(x) for x in data_input], key1, key2)
+        return jsonify({"result": ''.join(map(str, result))})
+    return jsonify({"error": "未知的操作类型"}), 400
+
+def double_encryption(cipher, plaintext, key1, key2):
+    cipher.SetKey([int(x) for x in key1])
+    first_round_cipher = cipher.Encryption(plaintext, with_steps=False)
+    cipher.SetKey([int(x) for x in key2])
+    second_round_cipher = cipher.Encryption(first_round_cipher['ciphertext'], with_steps=False)
+    return second_round_cipher['ciphertext']
+
+def double_decryption(cipher, ciphertext, key1, key2):
+    cipher.SetKey([int(x) for x in key2])
+    first_round_plaintext = cipher.Decryption(ciphertext)
+    cipher.SetKey([int(x) for x in key1])
+    second_round_plaintext = cipher.Decryption(first_round_plaintext)
+    return second_round_plaintext
+
+
+
+
+@app.route('/cbc-encryption', methods=['POST'])
+def cbc_encryption():
+    data = request.json
+    action = data.get('action')  # 'encrypt' or 'decrypt'
+    mode = data.get('mode')  # 'cbc-s-aes' or 'cbc-s-des'
+    key = data.get('key')  # 密钥
+    iv = data.get('iv')  # 初始向量
+    data_input = data.get('data')  # 明文/密文
+
+    # 将 IV 和输入数据从字符串转换为位列表
+    try:
+        iv_bits = [int(x) for x in iv if x in '01']  # 确保 IV 是位列表，且只包含0或1
+        iv_bits = pad_iv_to_16_bits(iv_bits)  # 确保 IV 是16位
+        print(f"IV Bits (after conversion and padding): {iv_bits}")  # 调试输出
+    except ValueError:
+        return jsonify({"error": "无效的初始向量(IV)，应为二进制字符串"}), 400
+
+    try:
+        # 确保输入数据是整数列表
+        data_bits = [int(x) for x in data_input if x in '01']
+        print(f"Data Bits (after conversion): {data_bits}")  # 调试输出
+    except ValueError:
+        return jsonify({"error": "无效的输入数据，应为二进制字符串"}), 400
+
+    try:
+        # 将密钥转换为整数列表
+        key_bits = [int(x) for x in key if x in '01']  # 确保密钥是二进制字符串
+        if len(key_bits) != 16:  # 对于 S-AES 密钥应该是 16 位
+            return jsonify({"error": "密钥长度应为16位"}), 400
+        print(f"Key Bits (after conversion): {key_bits}")  # 调试输出
+    except ValueError:
+        return jsonify({"error": "无效的密钥，应为二进制字符串"}), 400
+
+    if len(data_bits) == 0:
+        return jsonify({"error": "输入数据不能为空"}), 400
+
+    # 确保输入数据长度为16位的倍数
+    if len(data_bits) % 16 != 0:
+        return jsonify({"error": "输入数据的长度必须是16位的倍数"}), 400
+
+    # 确保选择了正确的加密模式
+    if mode == 'cbc-s-aes':
+        cipher = aes_cipher
+    elif mode == 'cbc-s-des':
+        cipher = des_cipher
+    else:
+        return jsonify({"error": "未知的CBC加密模式"}), 400
+
+    # 设置初始向量和密钥
+    cipher.SetIV(iv_bits)
+    cipher.SetKey(key_bits)
+    print(f"Set IV and Key in Cipher")  # 调试输出
+
+    if action == 'encrypt':
+        # 确保传递的数据为整数
+        print(f"Data Bits before encryption: {data_bits}")  # 调试输出
+        result = cipher.Encryption_CBC(data_bits)
+        print(f"Encryption result: {result}")  # 调试输出
+    elif action == 'decrypt':
+        print(f"Data Bits before decryption: {data_bits}")  # 调试输出
+        result = cipher.Decryption_CBC(data_bits)
+        print(f"Decryption result: {result}")  # 调试输出
+    else:
+        return jsonify({"error": "未知的操作类型"}), 400
+
+    return jsonify({"result": ''.join(map(str, result))})
+
+
+# IV 补齐函数
+def pad_iv_to_16_bits(iv):
+    # 如果IV不足16位补0，如果超出16位截断
+    if len(iv) < 16:
+        iv.extend([0] * (16 - len(iv)))
+    return iv[:16]  # 确保IV不超过16位
+
+
+
+
+@app.route('/meet-in-the-middle', methods=['POST'])
+def meet_in_the_middle():
+    data = request.json
+    mode = data.get('mode')  # 'meet-s-aes' or 'meet-s-des'
+    plaintext = [int(x) for x in data.get('plaintext')]
+    ciphertext = [int(x) for x in data.get('ciphertext')]
+
+    if mode == 'meet-s-aes':
+        cipher = aes_cipher
+    elif mode == 'meet-s-des':
+        cipher = des_cipher
+    else:
+        return jsonify({"error": "未知的加密模式"}), 400
+
+    # 调用中间相遇攻击函数
+    result = perform_meet_in_the_middle_attack(cipher, plaintext, ciphertext)
+    
+    # 返回结果到前端
+    return jsonify({"result": result})
+
+
+def perform_meet_in_the_middle_attack(cipher, plaintext, ciphertext):
+    # 假设密钥空间较小，举例 AES 使用 16 位密钥，DES 使用 10 位密钥
+    # 在这里我们假设攻击的是 S-AES
+    
+    key_space_size = 2 ** 16  # 16 位密钥空间
+    
+    # 存储从明文加密后的“中间”状态，key1 -> 中间状态
+    encryption_dict = {}
+    
+    # 第一步：对明文进行加密，穷举所有可能的 key1，记录加密后的中间状态
+    for key1 in range(key_space_size):
+        key1_bin = format(key1, '016b')  # 转换成 16 位二进制字符串
+        cipher.SetKey([int(x) for x in key1_bin])  # 使用 key1 设置密钥
+        middle_state = cipher.Encryption(plaintext)['ciphertext']  # 记录加密到“中间”状态
+        encryption_dict[tuple(middle_state)] = key1_bin  # 以中间状态为键，key1 为值存储
+    
+    # 第二步：对密文进行解密，穷举所有可能的 key2，检查中间状态是否匹配
+    for key2 in range(key_space_size):
+        key2_bin = format(key2, '016b')  # 转换成 16 位二进制字符串
+        cipher.SetKey([int(x) for x in key2_bin])  # 使用 key2 设置密钥
+        middle_state = cipher.Decryption(ciphertext)  # 解密到“中间”状态
+        
+        # 检查解密到的“中间”状态是否存在于加密过程中遇到的中间状态
+        if tuple(middle_state) in encryption_dict:
+            key1_found = encryption_dict[tuple(middle_state)]  # 对应的 key1
+            return f"成功找到匹配的密钥对: key1={key1_found}, key2={key2_bin}"
+    
+    return "未找到匹配的密钥对"
 
 
 

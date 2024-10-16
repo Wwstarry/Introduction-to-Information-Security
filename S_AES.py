@@ -193,6 +193,33 @@ class S_AES():
 
     def GetKey(self):
         return ''.join(map(str, self.K))
+    
+
+
+    def encryption(self, InputBits):
+        """应该给出16bit的明文。进行加密操作"""
+        Pre_Trans = self.XOR(InputBits, self.w[0] + self.w[1])  # 加轮变换
+        Sub_Trans = self.Nibble_Substitution(Pre_Trans, self.NS)  # 半字节替换
+        Shift_Trans = self.ShiftRows(Sub_Trans)  # 行位移
+        MC_Trans = self.MixColumns(Shift_Trans, self.MC)  # 列混淆
+        Pre_Trans_2 = self.XOR(MC_Trans, self.w[2] + self.w[3])
+        Sub_Trans_2 = self.Nibble_Substitution(Pre_Trans_2, self.NS)  # 半字节替换
+        Shift_Trans_2 = self.ShiftRows(Sub_Trans_2)  # 行位移
+        Pre_Trans_3 = self.XOR(Shift_Trans_2, self.w[4] + self.w[5])
+        return Pre_Trans_3
+
+    def decryption(self, InputBits):
+        """应该给出16bit的明文。进行加密操作"""
+        Pre_Trans = self.XOR(InputBits, self.w[4] + self.w[5])  # 加轮变换
+        Shift_Trans = self.ShiftRows(Pre_Trans)  # 逆行位移，在该情景下，逆行变换和行变换相同
+        Sub_Trans = self.Nibble_Substitution(Shift_Trans, self.INS)  # 逆半字节替换
+        Pre_Trans_2 = self.XOR(Sub_Trans, self.w[2] + self.w[3])
+        MC_Trans = self.MixColumns(Pre_Trans_2, self.IMC)  # 逆列混淆
+        Shift_Trans_2 = self.ShiftRows(MC_Trans)  # 逆行位移
+        Sub_Trans_2 = self.Nibble_Substitution(Shift_Trans_2, self.INS)  # 逆半字节替换
+        Pre_Trans_3 = self.XOR(Sub_Trans_2, self.w[0] + self.w[1])  # 加轮变换
+        return Pre_Trans_3
+    
     def Encryption_CBC(self,InputList:list):
         """输入一个完整字符串的Bit进行加密"""
         if len(InputList)==0:
@@ -201,12 +228,12 @@ class S_AES():
         P = InputList[:16]
         print(P)
 
-        Last_Vector = self.Encryption(self.XOR(self.IV, P))
+        Last_Vector = self.encryption(self.XOR(self.IV, P))
         result.append([x for x in Last_Vector])
 
         for i in range(16,len(InputList),16):
             P=InputList[i:i+16]
-            Last_Vector = self.Encryption(self.XOR(Last_Vector, P))
+            Last_Vector = self.encryption(self.XOR(Last_Vector, P))
             result.append([x for x in Last_Vector])
 
         flattened_result = [element for sublist in result for element in sublist]
@@ -218,14 +245,14 @@ class S_AES():
             return []
         result = []
         C = InputList[:16]
-        Last_Vector=self.Decryption(C)
+        Last_Vector=self.decryption(C)
         P=self.XOR(self.IV, Last_Vector)
 
         result.append([x for x in P])
 
         for i in range(16, len(InputList), 16):
             C = InputList[i:i+16]
-            Last_Vector = self.Decryption(C)
+            Last_Vector = self.decryption(C)
             P = self.XOR(InputList[i-16:i], Last_Vector)
             result.append([x for x in P])
 
