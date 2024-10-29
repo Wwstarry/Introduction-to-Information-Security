@@ -865,6 +865,56 @@ def perform_meet_in_the_middle_attack(cipher, plaintext, ciphertext):
     return "未找到匹配的密钥对"
 
 
+# 三重加密/解密路由
+@app.route('/triple-encryption', methods=['POST'])
+def triple_encryption_decryption():
+    data = request.json
+    action = data.get('action')  # 'encrypt' or 'decrypt'
+    mode = data.get('mode')  # 'triple-s-aes' or 'triple-s-des'
+    key1 = data.get('key1')
+    key2 = data.get('key2')
+    key3 = data.get('key3')
+    data_input = data.get('data')  # plaintext or ciphertext
+
+    if not key1 or not key2 or not key3:
+        return jsonify({"error": "需要提供三个密钥"}), 400
+
+    if mode == 'triple-s-aes':
+        cipher = aes_cipher
+        if len(key1) != 16 or len(key2) != 16 or len(key3) != 16:
+            return jsonify({"error": "三重 S-AES 加密需要三个 16 位密钥"}), 400
+    elif mode == 'triple-s-des':
+        cipher = des_cipher
+        if len(key1) != 10 or len(key2) != 10 or len(key3) != 10:
+            return jsonify({"error": "三重 S-DES 加密需要三个 10 位密钥"}), 400
+    else:
+        return jsonify({"error": "未知的加密模式"}), 400
+
+    if action == 'encrypt':
+        result = triple_encryption(cipher, [int(x) for x in data_input], key1, key2, key3)
+        return jsonify({"result": ''.join(map(str, result))})
+    elif action == 'decrypt':
+        result = triple_decryption(cipher, [int(x) for x in data_input], key1, key2, key3)
+        return jsonify({"result": ''.join(map(str, result))})
+    return jsonify({"error": "未知的操作类型"}), 400
+
+def triple_encryption(cipher, plaintext, key1, key2, key3):
+    cipher.SetKey([int(x) for x in key1])
+    first_round_cipher = cipher.Encryption(plaintext, with_steps=False)
+    cipher.SetKey([int(x) for x in key2])
+    second_round_cipher = cipher.Encryption(first_round_cipher['ciphertext'], with_steps=False)
+    cipher.SetKey([int(x) for x in key3])
+    third_round_cipher = cipher.Encryption(second_round_cipher['ciphertext'], with_steps=False)
+    return third_round_cipher['ciphertext']
+
+def triple_decryption(cipher, ciphertext, key1, key2, key3):
+    cipher.SetKey([int(x) for x in key3])
+    first_round_plaintext = cipher.Decryption(ciphertext)
+    cipher.SetKey([int(x) for x in key2])
+    second_round_plaintext = cipher.Decryption(first_round_plaintext)
+    cipher.SetKey([int(x) for x in key1])
+    third_round_plaintext = cipher.Decryption(second_round_plaintext)
+    return third_round_plaintext
 
 
 
